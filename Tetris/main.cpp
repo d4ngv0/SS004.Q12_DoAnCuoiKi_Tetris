@@ -121,24 +121,7 @@ bool canMove(int dx, int dy){
             }
     return true;
 }
-int removeLine(){
-     int removed = 0;
-    for (int i = H - 2; i >= 1; --i) {
-        bool full = true;
-        for (int j = 1; j <= W - 2; ++j) {
-            if (board[i][j] == ' ') { full = false; break; }
-        }
-        if (full) {
-            for (int ii = i; ii >= 1; --ii)
-                for (int j = 1; j <= W - 2; ++j)
-                    board[ii][j] = board[ii - 1][j];
-            for (int j = 1; j <= W - 2; ++j) board[0][j] = ' ';
-            ++removed;
-            ++i; 
-        }
-    }
-    return removed;
-}
+void removeLine(){}
 
 int main()
 {
@@ -159,7 +142,7 @@ int main()
         if (canMove(0,1)) y++;
         else {
             block2Board();
-            int line = removeLine();
+            removeLine();
             x = 5; y = 0; b = rand() % 7;
         }
         block2Board();
