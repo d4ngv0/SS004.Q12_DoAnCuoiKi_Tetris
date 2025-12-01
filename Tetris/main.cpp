@@ -59,11 +59,20 @@ void initBoard(){
             if ((i==H-1) || (j==0) || (j == W-1)) board[i][j] = '#';
             else board[i][j] = ' ';
 }
-void draw(){
-    gotoxy(0,0);
-    for (int i = 0 ; i < H ; i++, cout<<endl)
-        for (int j = 0 ; j < W ; j++)
-            cout<<board[i][j];
+void draw() {
+    gotoxy(0, 0);
+    for (int i = 0; i < H; i++, cout << endl) {
+        for (int j = 0; j < W; j++) {
+            if (board[i][j] == ' ') {
+                cout << "  ";
+            }
+            else {
+
+                unsigned char c = 219;
+                cout << c << c;
+            }
+        }
+    }
 }
 bool canMove(int dx, int dy){
     for (int i = 0 ; i < 4 ; i++)
@@ -97,6 +106,7 @@ int removeLine(){
 
 int main()
 {
+    SetConsoleOutputCP(437);
     srand(time(0));
     b = rand() % 7;
     system("cls");
