@@ -81,7 +81,7 @@ void increaseSpeed(int percent) {
         speed = speed * (100 - percent) / 100;
 }
 
-void removeLines() {
+void removeLine() {
     increaseSpeed(10);
 }
 int main()
@@ -102,7 +102,7 @@ int main()
         if (canMove(0,1)) y++;
         else {
             block2Board();
-            removeLines();
+            removeLine();
             x = 5; y = 0; b = rand() % 7;
         }
         block2Board();
