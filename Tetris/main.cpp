@@ -121,7 +121,32 @@ bool canMove(int dx, int dy){
             }
     return true;
 }
-void removeLine(){}
+void removeLine() {
+    for (int i = H - 2; i > 0; i--) {
+        bool isFull = true;
+
+        for (int j = 1; j < W - 1; j++) {
+            if (board[i][j] == ' ') {
+                isFull = false;
+                break;
+            }
+        }
+
+        if (isFull) {
+            for (int k = i; k > 0; k--) {
+                for (int j = 1; j < W - 1; j++) {
+                    board[k][j] = board[k - 1][j];
+                }
+            }
+            for (int j = 1; j < W - 1; j++) board[0][j] = ' ';
+
+            i++; 
+            
+            draw();
+            // _sleep(100); 
+        }
+    }
+}
 
 int main()
 {
