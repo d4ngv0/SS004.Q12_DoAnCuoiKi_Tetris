@@ -59,11 +59,20 @@ void initBoard(){
             if ((i==H-1) || (j==0) || (j == W-1)) board[i][j] = '#';
             else board[i][j] = ' ';
 }
-void draw(){
-    gotoxy(0,0);
-    for (int i = 0 ; i < H ; i++, cout<<endl)
-        for (int j = 0 ; j < W ; j++)
-            cout<<board[i][j];
+void draw() {
+    gotoxy(0, 0);
+    for (int i = 0; i < H; i++, cout << endl) {
+        for (int j = 0; j < W; j++) {
+            if (board[i][j] == ' ') {
+                cout << "  ";
+            }
+            else {
+
+                unsigned char c = 219;
+                cout << c << c;
+            }
+        }
+    }
 }
 bool canMove(int dx, int dy){
     for (int i = 0 ; i < 4 ; i++)
@@ -76,16 +85,43 @@ bool canMove(int dx, int dy){
             }
     return true;
 }
+
 void increaseSpeed(int percent) {
     if (speed > 60)
         speed = speed * (100 - percent) / 100;
 }
 
 void removeLine() {
+    for (int i = H - 2; i > 0; i--) {
+        bool isFull = true;
+
+        for (int j = 1; j < W - 1; j++) {
+            if (board[i][j] == ' ') {
+                isFull = false;
+                break;
+            }
+        }
+
+        if (isFull) {
+            for (int k = i; k > 0; k--) {
+                for (int j = 1; j < W - 1; j++) {
+                    board[k][j] = board[k - 1][j];
+                }
+            }
+            for (int j = 1; j < W - 1; j++) board[0][j] = ' ';
+
+            i++; 
+            
+            draw();
+            // _sleep(100); 
+        }
+    }
     increaseSpeed(10);
 }
+
 int main()
 {
+    SetConsoleOutputCP(437);
     srand(time(0));
     b = rand() % 7;
     system("cls");
