@@ -145,13 +145,11 @@ int main()
     initBoard();
     while (1){
         boardDelBlock();
-        if (kbhit()){
-            char c = getch();
-            if (c=='a' && canMove(-1,0)) x--;
-            if (c=='d' && canMove(1,0))  x++;
-            if (c=='x' && canMove(0,1))  y++;
-            if (c=='q') break;
-        }
+
+        if ((GetAsyncKeyState('A') & 0x8000) && canMove(-1,0)) x--;
+        if ((GetAsyncKeyState('D') & 0x8000) && canMove(1,0) ) x++;
+        if ((GetAsyncKeyState('x') & 0x8000) && canMove(0,1))  y++;
+
         if (canMove(0,1) && canFall()){
             y++;
         }
