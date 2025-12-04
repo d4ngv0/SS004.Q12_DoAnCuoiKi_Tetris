@@ -110,10 +110,10 @@ void removeLine() {
             }
             for (int j = 1; j < W - 1; j++) board[0][j] = ' ';
 
-            i++; 
-            
+            i++;
+
             draw();
-            // _sleep(100); 
+            // _sleep(100);
         }
     }
     increaseSpeed(10);
@@ -128,13 +128,19 @@ int main()
     initBoard();
     while (1){
         boardDelBlock();
-        if (kbhit()){
-            char c = getch();
-            if (c=='a' && canMove(-1,0)) x--;
-            if (c=='d' && canMove(1,0) ) x++;
-            if (c=='x' && canMove(0,1))  y++;
-            if (c=='q') break;
-        }
+//        if (kbhit()){
+//            char c = getch();
+//            if (c=='a' && canMove(-1,0)) x--;
+//            if (c=='d' && canMove(1,0) ) x++;
+//            if (c=='x' && canMove(0,1))  y++;
+//            if (c=='q') break;
+//        }
+
+            if ((GetAsyncKeyState('A') & 0x8000) && canMove(-1,0)) x--;
+            if ((GetAsyncKeyState('D') & 0x8000) && canMove(1,0) ) x++;
+            if ((GetAsyncKeyState('x') & 0x8000) && canMove(0,1))  y++;
+//            if (c=='q') break;
+
         if (canMove(0,1)) y++;
         else {
             block2Board();
