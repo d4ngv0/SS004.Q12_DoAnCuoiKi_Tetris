@@ -126,6 +126,17 @@ void removeLine() {
 
 }
 
+void rotateBlock() {
+    char temp[4][4];
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j++)
+            temp[j][3 - i] = blocks[b][i][j];
+    }
+    if (canRotate(temp)) {
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++)
+                blocks[b][i][j] = temp[i][j];
+	}
 bool canFall(){
     bool fall = false;
     currentSpeed += tick;
@@ -149,6 +160,7 @@ int main()
         if ((GetAsyncKeyState('A') & 0x8000) && canMove(-1,0)) x--;
         if ((GetAsyncKeyState('D') & 0x8000) && canMove(1,0)) x++;
         if ((GetAsyncKeyState('X') & 0x8000) && canMove(0,1)) y++;
+        if (GetAsyncKeyState('W') & 0x8000) rotateBlock();
         if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) break;
 
         if (canMove(0,1) && canFall()){
