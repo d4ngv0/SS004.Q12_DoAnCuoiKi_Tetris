@@ -147,8 +147,9 @@ int main()
         boardDelBlock();
 
         if ((GetAsyncKeyState('A') & 0x8000) && canMove(-1,0)) x--;
-        if ((GetAsyncKeyState('D') & 0x8000) && canMove(1,0) ) x++;
-        if ((GetAsyncKeyState('x') & 0x8000) && canMove(0,1))  y++;
+        if ((GetAsyncKeyState('D') & 0x8000) && canMove(1,0)) x++;
+        if ((GetAsyncKeyState('X') & 0x8000) && canMove(0,1)) y++;
+        if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) break;
 
         if (canMove(0,1) && canFall()){
             y++;
