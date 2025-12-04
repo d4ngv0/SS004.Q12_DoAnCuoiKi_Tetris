@@ -110,10 +110,10 @@ void removeLine() {
             }
             for (int j = 1; j < W - 1; j++) board[0][j] = ' ';
 
-            i++; 
-            
+            i++;
+
             draw();
-            // _sleep(100); 
+            // _sleep(100);
         }
     }
     increaseSpeed(10);
@@ -136,12 +136,12 @@ bool canRotate(char temp[4][4]) {
 void rotateBlock() {
     char temp[4][4];
     for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) 
+        for (int j = 0; j < 4; j++)
             temp[j][3 - i] = blocks[b][i][j];
     }
     if (canRotate(temp)) {
         for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 4; j++) 
+            for (int j = 0; j < 4; j++)
                 blocks[b][i][j] = temp[i][j];
 	}
     }
@@ -159,9 +159,9 @@ int main()
         if (kbhit()){
             char c = getch();
             if (c=='a' && canMove(-1,0)) x--;
-            if (c=='d' && canMove(1,0) ) x++;
+            if (c=='d' && canMove(1,0)) x++;
             if (c=='x' && canMove(0,1))  y++;
-	    if (c=='w') rotateBlock();
+            if (c=='w') rotateBlock();
             if (c=='q') break;
         }
         if (canMove(0,1)) y++;
