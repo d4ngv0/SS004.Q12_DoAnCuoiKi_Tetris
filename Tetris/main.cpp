@@ -35,8 +35,13 @@ char blocks[][4][4] = {
          {'L','L','L',' '},
          {' ',' ',' ',' '}}
 };
+
+const int tick = 50; // 20 fps
 int speed = 1000;
+int currentSpeed = 0;
+int level = 0;
 int x=4,y=0,b=1;
+
 void gotoxy(int x, int y) {
     COORD c = {x, y};
     SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), c);
@@ -61,7 +66,7 @@ void initBoard(){
 }
 void draw() {
     gotoxy(0, 0);
-    for (int i = 0; i < H; i++, cout << endl) {
+    for (int i = 0; i < H; i++, cout <<"\n") {
         for (int j = 0; j < W; j++) {
             if (board[i][j] == ' ') {
                 cout << "  ";
@@ -87,7 +92,7 @@ bool canMove(int dx, int dy){
 }
 
 void increaseSpeed(int percent) {
-    if (speed > 60)
+    if (speed > 50)
         speed = speed * (100 - percent) / 100;
 }
 
@@ -114,23 +119,11 @@ void removeLine() {
 
             draw();
             // _sleep(100);
+            increaseSpeed(10);
+            level += 1;
         }
     }
-    increaseSpeed(10);
-}
 
-bool canRotate(char temp[4][4]) {
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
-            if (temp[i][j] != ' ') {
-                int tx = x + j;
-                int ty = y + i;
-                if (tx < 1 || tx >= W - 1 || ty >= H - 1) return false;
-                if (board[ty][tx] != ' ') return false;
-            }
-        }
-    }
-    return true;
 }
 
 void rotateBlock() {
@@ -144,7 +137,14 @@ void rotateBlock() {
             for (int j = 0; j < 4; j++)
                 blocks[b][i][j] = temp[i][j];
 	}
+bool canFall(){
+    bool fall = false;
+    currentSpeed += tick;
+    if (currentSpeed >= speed){
+        currentSpeed -= speed;
+        fall = true;
     }
+    return fall;
 }
 
 int main()
@@ -156,23 +156,24 @@ int main()
     initBoard();
     while (1){
         boardDelBlock();
-        if (kbhit()){
-            char c = getch();
-            if (c=='a' && canMove(-1,0)) x--;
-            if (c=='d' && canMove(1,0)) x++;
-            if (c=='x' && canMove(0,1))  y++;
-            if (c=='w') rotateBlock();
-            if (c=='q') break;
+
+        if ((GetAsyncKeyState('A') & 0x8000) && canMove(-1,0)) x--;
+        if ((GetAsyncKeyState('D') & 0x8000) && canMove(1,0)) x++;
+        if ((GetAsyncKeyState('X') & 0x8000) && canMove(0,1)) y++;
+        if (GetAsyncKeyState('W') & 0x8000) rotateBlock();
+        if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) break;
+
+        if (canMove(0,1) && canFall()){
+            y++;
         }
-        if (canMove(0,1)) y++;
-        else {
+        else if (!canMove(0,1)){
             block2Board();
             removeLine();
             x = 5; y = 0; b = rand() % 7;
         }
         block2Board();
         draw();
-        _sleep(speed);
+        _sleep(tick);
     }
     return 0;
 }
