@@ -42,6 +42,7 @@ int currentSpeed = 0;
 int level = 0;
 int x=4,y=0,b=1;
 
+
 void gotoxy(int x, int y) {
     COORD c = {x, y};
     SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), c);
@@ -126,6 +127,20 @@ void removeLine() {
 
 }
 
+bool canRotate(char temp[4][4]) {
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j++) {
+            if (temp[i][j] != ' ') {
+                int tx = x + j;
+                int ty = y + i;
+                if (tx < 1 || tx >= W - 1 || ty >= H - 1) return false;
+                if (board[ty][tx] != ' ') return false;
+            }
+        }
+    }
+    return true;
+}
+
 void rotateBlock() {
     char temp[4][4];
     for (int i = 0; i < 4; i++) {
@@ -136,7 +151,10 @@ void rotateBlock() {
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++)
                 blocks[b][i][j] = temp[i][j];
-	}
+        }
+    }
+}
+
 bool canFall(){
     bool fall = false;
     currentSpeed += tick;
