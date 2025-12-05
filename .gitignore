@@ -43,3 +43,6 @@ install_manifest.txt
 
 # Misc
 *.tmp
+
+#scoreboards
+scoreboards.txt
