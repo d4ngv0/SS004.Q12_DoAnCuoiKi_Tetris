@@ -5,6 +5,8 @@
 #include <fstream>
 #include <vector>
 #include <stack>
+#include <algorithm>
+#include <cmath>
 
 using namespace std;
 #define H 20
@@ -42,7 +44,7 @@ char blocks[][4][4] = {
 };
 
 const int tick = 50; // 20 fps
-string localDic = "scoreboards.txt";
+string localDir = "scoreboards.txt";
 string apiURL = "https://script.google.com/macros/s/AKfycbyBSofw1Jugm68awOHDcthLfNzTuGC_2rxkbTafpgLc3w1NIfnHKwvJmOfIC_0FEuoX/exec";
 int speed = 1000;
 int currentSpeed = 0;
@@ -189,13 +191,13 @@ string execCurl(string cmd) {
 
 void addScore2LocalLdb(string name, int score){
     ofstream ost;
-    ost.open(localDic, ios::out | ios::app);
+    ost.open(localDir, ios::out | ios::app);
     ost<<name<<" "<<score<<"\n";
     ost.close();
 }
 
 void deleteLocalLdb(){
-    ofstream ost(localDic);
+    ofstream ost(localDir);
     ost<<"";
     ost.close();
 }
@@ -219,15 +221,45 @@ string get10GlobalLdb(int page){
     return json;
 }
 
-string get10LocalLdb(){
-    string name, score;
-    ifstream ifs(localDic);
-    while (ifs>>name>>score>>date){
-
+bool isNumber(string& s){
+    for (char c : s){
+        if (!isdigit(c)){
+            return false;
+        }
     }
+    return true;
+}
 
+bool compareString(vector<string> a, vector<string> b){
+    return stoi(a[1]) > stoi(b[1]);
+}
+
+vector<vector<string>> getLocalDatas(){
+    string name, score;
+    vector<vector<string>> datas;
+    ifstream ifs(localDir);
+    while (ifs>>name>>score){
+        vector<string> line;
+        line.push_back(name);
+        if (isNumber(score)){
+            line.push_back(score);
+            datas.push_back(line);
+        } else{
+            continue;
+        }
+    }
     ifs.close();
-    return "";
+    return datas;
+}
+
+string get10LocalLdb(){
+    string data = "";
+    vector<vector<string>> datas = getLocalDatas();
+    sort(datas.begin(), datas.end(), compareString);
+    for (int i = 0; i < (datas.size() < 10 ? datas.size() : 10); i++){
+        data += datas[i][0] + " " + datas[i][1] + "\n";
+    }
+    return data;
 }
 
 vector<vector<string>> processJSON(string json){
@@ -277,6 +309,7 @@ int main()
     b = rand() % 7;
     system("cls");
     initBoard();
+
     while (1){
         boardDelBlock();
 
