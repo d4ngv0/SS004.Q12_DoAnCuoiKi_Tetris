@@ -170,7 +170,7 @@ void hardDrop(){
         y++;
         block2Board();
         draw();
-        _sleep(10);
+        _sleep(1);
         boardDelBlock();
     }
     block2Board();
