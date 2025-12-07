@@ -165,6 +165,20 @@ bool canFall(){
     return fall;
 }
 
+void hardDrop(){
+    while (canMove(0,1)) {
+        y++;
+        block2Board();
+        draw();
+        _sleep(10);
+        boardDelBlock();
+    }
+    block2Board();
+    removeLine();
+    x = 5; y = 0; b = rand() % 7;
+    currentSpeed = 0;
+}
+
 int main()
 {
     SetConsoleOutputCP(437);
@@ -179,7 +193,10 @@ int main()
         if ((GetAsyncKeyState('D') & 0x8000) && canMove(1,0)) x++;
         if ((GetAsyncKeyState('X') & 0x8000) && canMove(0,1)) y++;
         if (GetAsyncKeyState('W') & 0x8000) rotateBlock();
-        if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) break;
+        if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
+            hardDrop();
+            _sleep(200);
+        }
 
         if (canMove(0,1) && canFall()){
             y++;
