@@ -1,7 +1,14 @@
 #include <iostream>
 #include <conio.h>
 #include <windows.h>
+#include <string>
+#include <fstream>
+#include <vector>
+#include <stack>
+#include <algorithm>
+#include <cmath>
 #include <ctime>
+
 using namespace std;
 
 #define H 20
@@ -20,6 +27,8 @@ char blocks[][4][4] = {
 };
 
 const int tick = 50; // 20 fps
+string localDir = "scoreboards.txt";
+string apiURL = "https://script.google.com/macros/s/AKfycbyBSofw1Jugm68awOHDcthLfNzTuGC_2rxkbTafpgLc3w1NIfnHKwvJmOfIC_0FEuoX/exec";
 int speed = 1000;
 int currentSpeed = 0;
 int level = 1;
@@ -215,12 +224,139 @@ void hardDrop(){
     currentSpeed = 0;
 }
 
+string execCurl(string cmd) {
+    string result;
+    char buffer[256];
+
+    FILE* pipe = _popen(cmd.c_str(), "r");
+    if (!pipe) return "ERROR";
+
+    while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
+        result += buffer;
+    }
+
+    _pclose(pipe);
+    return result;
+}
+
+void addScore2LocalLdb(string name, int score){
+    ofstream ost;
+    ost.open(localDir, ios::out | ios::app);
+    ost<<name<<" "<<score<<"\n";
+    ost.close();
+}
+
+void deleteLocalLdb(){
+    ofstream ost(localDir);
+    ost<<"";
+    ost.close();
+}
+
+void addScore2GlobalLdb(string name, int score){
+    string data = "\"name="+name+"&score="+to_string(score)+"\" ";
+    try {
+        string json = execCurl("curl -d " + data + apiURL);
+    } catch (...){
+        cout<<"Error! Can't push score to global leaderboard!\n";
+    }
+}
+
+string get10GlobalLdb(int page){
+    string json ="{}";
+    try {
+        json = execCurl("curl -L -s \"" + apiURL + "?page=" + to_string(page) + "\"");
+    } catch (...){
+        cout<<"Error! Can't get scores from global leaderboard!\n";
+    }
+    return json;
+}
+
+bool isNumber(string& s){
+    for (char c : s){
+        if (!isdigit(c)){
+            return false;
+        }
+    }
+    return true;
+}
+
+bool compareString(vector<string> a, vector<string> b){
+    return stoi(a[1]) > stoi(b[1]);
+}
+
+vector<vector<string>> getLocalDatas(){
+    string name, score;
+    vector<vector<string>> datas;
+    ifstream ifs(localDir);
+    while (ifs>>name>>score){
+        vector<string> line;
+        line.push_back(name);
+        if (isNumber(score)){
+            line.push_back(score);
+            datas.push_back(line);
+        } else{
+            continue;
+        }
+    }
+    ifs.close();
+    return datas;
+}
+
+string get10LocalLdb(){
+    string data = "";
+    vector<vector<string>> datas = getLocalDatas();
+    sort(datas.begin(), datas.end(), compareString);
+    for (int i = 0; i < (datas.size() < 10 ? datas.size() : 10); i++){
+        data += datas[i][0] + " " + datas[i][1] + "\n";
+    }
+    return data;
+}
+
+vector<vector<string>> processJSON(string json){
+    vector<vector<string>> datas;
+    stack<char> st;
+    int i = 1;
+    st.push(json[0]);
+    vector<string> line;
+    string data = "";
+
+    while (!st.empty()){
+        if (json[i] == ']'){
+            if (st.size() > 1){
+                line.push_back(data);
+                data = "";
+                datas.push_back(line);
+                line.clear();
+            }
+            st.pop();
+        } else if (json[i] == '['){
+            st.push(json[i]);
+        } else if (json[i] == ','){
+            if (st.size() > 1){
+                line.push_back(data);
+                data = "";
+            }
+        } else{
+            data += json[i];
+        }
+
+        i++;
+    }
+
+    return datas;
+}
+
+void debug(vector<vector<string>> datas){
+    for (int i = 0; i < datas.size(); i++){
+        cout<<datas[i][0]<<" "<<datas[i][1]<<" "<<datas[i][2]<<"\n";
+    }
+}
+
 int main()
 {
     SetConsoleOutputCP(437);
     srand(time(0));
     hideCursor();
-
 
     // Vòng lặp chính của ứng dụng (Game App Loop)
     while (true) {
