@@ -22,8 +22,9 @@ char blocks[][4][4] = {
 const int tick = 50; // 20 fps
 int speed = 1000;
 int currentSpeed = 0;
-int level = 0;
+int level = 1;
 int score = 0; // Thêm điểm số
+int next_b=0;
 int x = 4, y = 0, b = 1;
 bool isGameOver = false;
 
@@ -32,7 +33,13 @@ void gotoxy(int x, int y) {
     COORD c = {(short)x, (short)y};
     SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), c);
 }
-
+void hideCursor() {
+    HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_CURSOR_INFO info;
+    info.dwSize = 100;
+    info.bVisible = FALSE;
+    SetConsoleCursorInfo(consoleHandle, &info);
+}
 void initBoard() {
     for (int i = 0; i < H; i++)
         for (int j = 0; j < W; j++)
@@ -45,10 +52,11 @@ void resetGame() {
     initBoard();
     speed = 1000;
     currentSpeed = 0;
-    level = 0;
+    level = 1;
     score = 0;
     x = 4; y = 0;
     b = rand() % 7;
+    next_b=rand() %7;
     isGameOver = false;
     system("cls"); // Xóa màn hình console
 }
@@ -62,12 +70,33 @@ void draw() {
             else cout << (unsigned char)219 << (unsigned char)219; // Gạch
         }
     }
-    // Hiển thị thông tin bên cạnh
-    gotoxy(W * 2 + 2, 5); cout << "Level: " << level;
-    gotoxy(W * 2 + 2, 6); cout << "Score: " << score;
-    gotoxy(W * 2 + 2, 8); cout << "A,D: Move";
-    gotoxy(W * 2 + 2, 9); cout << "W: Rotate";
-    gotoxy(W * 2 + 2, 10); cout << "X: Down";
+    int uiX = W * 2 + 4;
+
+
+    gotoxy(uiX, 4); cout << "Level: " << level;
+    gotoxy(uiX, 5); cout << "Score: " << score;
+
+
+    gotoxy(uiX, 8); cout << "--- NEXT ---";
+
+    for(int i=0; i<4; i++) {
+        gotoxy(uiX + 2, 10 + i); cout << "        ";
+    }
+
+    for (int i = 0; i < 4; i++) {
+        gotoxy(uiX + 2, 10 + i);
+        for (int j = 0; j < 4; j++) {
+            if (blocks[next_b][i][j] != ' ') {
+                cout << (unsigned char)219 << (unsigned char)219;
+            } else {
+                cout << "  ";
+            }
+        }
+    }
+    gotoxy(uiX, 16); cout << "--- KEYS ---";
+    gotoxy(uiX, 17); cout << " A, D : Move";
+    gotoxy(uiX, 18); cout << " W    : Rotate";
+    gotoxy(uiX, 19); cout << " S    : Drop";
 }
 
 void showGameOverScreen() {
@@ -111,6 +140,7 @@ void increaseSpeed(int percent) {
 }
 
 void removeLine() {
+    int linesCleared = 0;
     for (int i = H - 2; i > 0; i--) {
         bool isFull = true;
         for (int j = 1; j < W - 1; j++) {
@@ -125,9 +155,14 @@ void removeLine() {
                     board[k][j] = board[k - 1][j];
             for (int j = 1; j < W - 1; j++) board[0][j] = ' ';
             i++;
-            score += 100; // Cộng điểm
-            increaseSpeed(5);
+            linesCleared++;
+        }
+    }
+    if (linesCleared > 0) {
+        score += linesCleared * 100 * level;
+        if (score >= level * 500) {
             level++;
+            if (speed > 100) speed -= 100;
         }
     }
 }
@@ -151,7 +186,7 @@ void rotateBlock() {
     for (int i = 0; i < 4; i++)
         for (int j = 0; j < 4; j++)
             temp[j][3 - i] = blocks[b][i][j];
-    
+
     if (canRotate(temp)) {
         for (int i = 0; i < 4; i++)
             for (int j = 0; j < 4; j++)
@@ -171,7 +206,9 @@ bool canFall() {
 int main() {
     SetConsoleOutputCP(437);
     srand(time(0));
-    
+    hideCursor();
+
+
     // Vòng lặp chính của ứng dụng (Game App Loop)
     while (true) {
         resetGame(); // 1. Khởi tạo dữ liệu mới
@@ -183,9 +220,9 @@ int main() {
             // Xử lý Input
             if ((GetAsyncKeyState('A') & 0x8000) && canMove(-1, 0)) x--;
             if ((GetAsyncKeyState('D') & 0x8000) && canMove(1, 0)) x++;
-            if ((GetAsyncKeyState('X') & 0x8000) && canMove(0, 1)) y++;
+            if ((GetAsyncKeyState('S') & 0x8000) && canMove(0, 1)) y++;
             if ((GetAsyncKeyState('W') & 0x8000)) {
-                rotateBlock(); 
+                rotateBlock();
                 Sleep(100); // Delay nhỏ để tránh xoay quá nhanh
             }
             if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
@@ -200,12 +237,14 @@ int main() {
                     // Nếu không rơi được nữa -> Chạm đáy/Gạch khác
                     block2Board(); // Cố định gạch vào board
                     removeLine();  // Ăn điểm
-                    
+                    b=next_b;
+                    next_b=rand() %7;
+
                     // --- SINH GẠCH MỚI VÀ KIỂM TRA THUA ---
-                    x = 4; y = 0; b = rand() % 7;
-                    
+                    x = 4; y = 0;
+
                     // Kiểm tra ngay tại chỗ sinh ra có bị kẹt không?
-                    if (!canMove(0, 0)) { 
+                    if (!canMove(0, 0)) {
                         isGameOver = true;
                     }
                 }
@@ -218,7 +257,7 @@ int main() {
 
         // --- Xử lý khi Game Over ---
         showGameOverScreen();
-        
+
         // Đợi người chơi chọn: R để chơi lại, ESC để thoát hẳn
         while (true) {
             if (GetAsyncKeyState('R') & 0x8000) {
