@@ -203,7 +203,20 @@ bool canFall() {
     return false;
 }
 
-int main() {
+void hardDrop(){
+    while (canMove(0,1)) {
+        y++;
+        block2Board();
+        boardDelBlock();
+    }
+    block2Board();
+    removeLine();
+    x = 5; y = 0; b = rand() % 7;
+    currentSpeed = 0;
+}
+
+int main()
+{
     SetConsoleOutputCP(437);
     srand(time(0));
     hideCursor();
@@ -225,10 +238,14 @@ int main() {
                 rotateBlock();
                 Sleep(100); // Delay nhỏ để tránh xoay quá nhanh
             }
+            if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
+                hardDrop();
+                _sleep(200);
+            }
             if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
                 isGameOver = true; // Thoát game chủ động
             }
-
+            
             // Xử lý rơi tự do
             if (canFall()) {
                 if (canMove(0, 1)) {
