@@ -169,8 +169,6 @@ void hardDrop(){
     while (canMove(0,1)) {
         y++;
         block2Board();
-        draw();
-        _sleep(1);
         boardDelBlock();
     }
     block2Board();
