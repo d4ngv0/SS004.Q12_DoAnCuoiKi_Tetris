@@ -36,8 +36,104 @@ int score = 0; // Thêm điểm số
 int next_b=0;
 int x = 4, y = 0, b = 1;
 bool isGameOver = false;
+enum Screen { GAMEPLAY, MENU, PAUSE };
+Screen screenState = GAMEPLAY;
+int menuIndex = 0; // mục đang chọn trong menu
+const char* menuItems[] = {"Sound enabled", "Volume", "Fall speed", "Resume"};
+const int menuCount = sizeof(menuItems) / sizeof(menuItems[0]);
 
 // --- Các hàm đồ họa & Logic ---
+
+struct Settings {
+    int volumePercent = 50;   // 0 - 100 (giả lập, vì hiện chưa có phát âm)
+    bool soundEnabled = false; // có/không dùng hiệu ứng âm thanh sau này
+    int fallSpeedPercent = 100; // 50-200 (map vào 'speed' của game)
+};
+Settings settings;
+
+// --- Hàm vẽ menu console ---
+void drawMenu() {
+    system("cls");
+    cout << "===== MENU CHINH =====\n\n";
+    for (int i = 0; i < menuCount; ++i) {
+        // highlight mục đang chọn
+        if (i == menuIndex) cout << " > ";
+        else cout << "   ";
+
+        if (i == 0) {
+            cout << "Sound enabled: " << (settings.soundEnabled ? "ON" : "OFF") << "\n";
+        } else if (i == 1) {
+            cout << "Volume: " << settings.volumePercent << "%\n";
+        } else if (i == 2) {
+            cout << "Fall speed: " << settings.fallSpeedPercent << "%\n";
+        } else if (i == 3) {
+            cout << "Resume game\n";
+        }
+    }
+    cout << "\n↑/↓: Chon muc | ←/→: Giam/Tang | Enter: Ap dung/Thuc thi | ESC/M: Thoat menu\n";
+}
+
+// --- Map fallSpeedPercent -> speed (ms giữa các lần rơi) ---
+void applyFallSpeed() {
+    // speed gốc của bạn là 1000 ms. Cho phép từ 50% (nhanh) đến 200% (chậm)
+    int base = 1000;
+    int pct = settings.fallSpeedPercent; // 50 - 200
+    speed = base * pct / 100;
+    if (speed < 50) speed = 50; // đừng quá nhanh để tránh “rơi liên tục”
+}
+
+void handleMenuInput() {
+    // Di chuyển chọn bằng mũi tên lên/xuống
+    if (GetAsyncKeyState(VK_UP) & 0x8000) {
+        if (menuIndex > 0) menuIndex--;
+        Sleep(120); // chống lặp quá nhanh
+    }
+    if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
+        if (menuIndex < menuCount - 1) menuIndex++;
+        Sleep(120);
+    }
+
+    // Điều chỉnh giá trị bằng mũi tên trái/phải
+    if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
+        if (menuIndex == 0) {
+            settings.soundEnabled = !settings.soundEnabled;
+        } else if (menuIndex == 1) {
+            settings.volumePercent = max(0, settings.volumePercent - 5);
+        } else if (menuIndex == 2) {
+            settings.fallSpeedPercent = max(50, settings.fallSpeedPercent - 5);
+            applyFallSpeed();
+        }
+        Sleep(120);
+    }
+    if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
+        if (menuIndex == 0) {
+            settings.soundEnabled = !settings.soundEnabled;
+        } else if (menuIndex == 1) {
+            settings.volumePercent = min(100, settings.volumePercent + 5);
+        } else if (menuIndex == 2) {
+            settings.fallSpeedPercent = min(200, settings.fallSpeedPercent + 5);
+            applyFallSpeed();
+        }
+        Sleep(120);
+    }
+
+    // Enter: thực thi mục Resume
+    if (GetAsyncKeyState(VK_RETURN) & 0x8000) {
+        if (menuIndex == 3) {
+            screenState = GAMEPLAY; // quay lại chơi
+            system("cls");
+        }
+        Sleep(150);
+    }
+
+    // ESC hoặc M: thoát menu
+    if ((GetAsyncKeyState(VK_ESCAPE) & 0x8000) || (GetAsyncKeyState('M') & 0x8000)) {
+        screenState = GAMEPLAY;
+        system("cls");
+        Sleep(150);
+    }
+}
+
 void gotoxy(int x, int y) {
     COORD c = {(short)x, (short)y};
     SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), c);
@@ -364,6 +460,20 @@ int main()
 
         // Vòng lặp ván chơi (Gameplay Loop)
         while (!isGameOver) {
+            // Phím mở menu
+            if (GetAsyncKeyState('M') & 0x8000) {
+                screenState = MENU;
+                menuIndex = 0;
+                drawMenu();
+                Sleep(150);
+            }
+
+            if (screenState == MENU) {
+                drawMenu();
+                handleMenuInput();
+                continue; // không xử lý gameplay khi đang ở menu
+            }
+
             boardDelBlock(); // Xóa vị trí cũ của gạch
 
             // Xử lý Input
