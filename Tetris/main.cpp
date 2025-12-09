@@ -51,31 +51,48 @@ struct Settings {
 };
 Settings settings;
 
-// --- Hàm vẽ menu console ---
+void gotoxy(int x, int y) {
+    COORD c = {(short)x, (short)y};
+    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), c);
+}
+
+// Hàm xóa dòng để tránh bị ghi đè khi chỉnh Menu
+void clearLine(int y, int width = 50) {
+    gotoxy(0, y);
+    for(int i = 0; i < width; i++) cout << " ";
+}
+
+//Hàm vẽ menu console
 void drawMenu() {
-    system("cls");
+
+    // Clear vùng menu (10 dòng đầu)
+    for(int i = 0; i < 12; i++) {
+        clearLine(i);
+    }
+
+    gotoxy(0,0);
     cout << "===== MENU CHINH =====\n\n";
+
     for (int i = 0; i < menuCount; ++i) {
-        // highlight mục đang chọn
         if (i == menuIndex) cout << " > ";
         else cout << "   ";
 
-        if (i == 0) {
+        if (i == 0)
             cout << "Sound enabled: " << (settings.soundEnabled ? "ON" : "OFF") << "\n";
-        } else if (i == 1) {
+        else if (i == 1)
             cout << "Volume: " << settings.volumePercent << "%\n";
-        } else if (i == 2) {
+        else if (i == 2)
             cout << "Fall speed: " << settings.fallSpeedPercent << "%\n";
-        } else if (i == 3) {
+        else if (i == 3)
             cout << "Resume game\n";
-        }
     }
-    cout << "\n↑/↓: Chon muc | ←/→: Giam/Tang | Enter: Ap dung/Thuc thi | ESC/M: Thoat menu\n";
+
+    cout << "\nUp/Down Arrow: Chon muc | Left/Right Arrow: Giam/Tang | Enter | ESC/M\n";
 }
 
-// --- Map fallSpeedPercent -> speed (ms giữa các lần rơi) ---
+// Hàm chỉnh tốc độ rơi của khối 50% (nhanh) --> 200% (chậm)
 void applyFallSpeed() {
-    // speed gốc của bạn là 1000 ms. Cho phép từ 50% (nhanh) đến 200% (chậm)
+    // speed gốc của bạn là 1000 ms
     int base = 1000;
     int pct = settings.fallSpeedPercent; // 50 - 200
     speed = base * pct / 100;
@@ -121,7 +138,6 @@ void handleMenuInput() {
     if (GetAsyncKeyState(VK_RETURN) & 0x8000) {
         if (menuIndex == 3) {
             screenState = GAMEPLAY; // quay lại chơi
-            system("cls");
         }
         Sleep(150);
     }
@@ -129,15 +145,10 @@ void handleMenuInput() {
     // ESC hoặc M: thoát menu
     if ((GetAsyncKeyState(VK_ESCAPE) & 0x8000) || (GetAsyncKeyState('M') & 0x8000)) {
         screenState = GAMEPLAY;
-        system("cls");
         Sleep(150);
     }
 }
 
-void gotoxy(int x, int y) {
-    COORD c = {(short)x, (short)y};
-    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), c);
-}
 void hideCursor() {
     HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_CURSOR_INFO info;
@@ -453,24 +464,28 @@ int main()
     SetConsoleOutputCP(437);
     srand(time(0));
     hideCursor();
-
+    bool menuTriggered = false;
     // Vòng lặp chính của ứng dụng (Game App Loop)
     while (true) {
         resetGame(); // 1. Khởi tạo dữ liệu mới
-
         // Vòng lặp ván chơi (Gameplay Loop)
         while (!isGameOver) {
             // Phím mở menu
             if (GetAsyncKeyState('M') & 0x8000) {
-                screenState = MENU;
-                menuIndex = 0;
-                drawMenu();
-                Sleep(150);
+                if(!menuTriggered) {
+                    screenState = MENU;
+                    menuIndex = 0;
+                    system("cls");
+                    drawMenu();
+                    menuTriggered = true;
+                }
             }
+            else menuTriggered = false;
 
             if (screenState == MENU) {
-                drawMenu();
                 handleMenuInput();
+                drawMenu();
+                Sleep(50);
                 continue; // không xử lý gameplay khi đang ở menu
             }
 
@@ -491,7 +506,7 @@ int main()
             if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
                 isGameOver = true; // Thoát game chủ động
             }
-            
+
             // Xử lý rơi tự do
             if (canFall()) {
                 if (canMove(0, 1)) {
