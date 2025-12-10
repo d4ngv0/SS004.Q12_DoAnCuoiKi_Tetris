@@ -328,17 +328,43 @@ void removeLine() {
     }
 }
 
-bool canRotate(char temp[4][4]) {
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
-            if (temp[i][j] != ' ') {
-                int tx = x + j;
-                int ty = y + i;
-                if (tx < 1 || tx >= W - 1 || ty >= H - 1) return false;
-                if (board[ty][tx] != ' ') return false;
+bool canRotate(char temp[4][4], int& offset) {
+    bool isCollide = true;
+    while (isCollide && (offset < 5 && offset > -5)){
+        isCollide = false;
+//        cout<<offset<<"\n";
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                if (temp[i][j] != ' ') {
+                    int tx = x + j + offset;
+                    int ty = y + i;
+                    if (tx < 1){
+                        isCollide = true;
+                        offset++;
+                        break;
+                    }
+                    if (tx > W - 2){
+                        isCollide = true;
+                        offset--;
+                        break;
+                    }
+                    if (ty >= H - 1){
+//                        cout<<">H-1";
+                        return false;
+                    }
+                    if (board[ty][tx] != ' '){
+//                        cout<<"Board";
+                        return false;
+                    }
+
+                }
+            }
+            if (isCollide){
+                break;
             }
         }
     }
+
     return true;
 }
 
@@ -347,11 +373,12 @@ void rotateBlockClock() {
     for (int i = 0; i < 4; i++)
         for (int j = 0; j < 4; j++)
             temp[j][3 - i] = blocks[b][i][j];
-
-    if (canRotate(temp)) {
+    int offset = 0;
+    if (canRotate(temp, offset)) {
         for (int i = 0; i < 4; i++)
             for (int j = 0; j < 4; j++)
                 blocks[b][i][j] = temp[i][j];
+        x += offset;
     }
 }
 
@@ -359,12 +386,13 @@ void rotateBlockCterClock() {
     char temp[4][4];
     for (int i = 0; i < 4; i++)
         for (int j = 0; j < 4; j++)
-            temp[j][3 - i] = blocks[b][i][j];
-
-    if (canRotate(temp)) {
+            temp[3-j][i] = blocks[b][i][j];
+    int offset = 0;
+    if (canRotate(temp, offset)) {
         for (int i = 0; i < 4; i++)
             for (int j = 0; j < 4; j++)
                 blocks[b][i][j] = temp[i][j];
+        x += offset;
     }
 }
 
@@ -518,7 +546,7 @@ vector<vector<string>> processJSON(string json){
 //}
 
 void debug(){
-    cout<<b<<" "<<next_b<<"\n";
+    cout<<x<<" "<<y<<"\n";
 }
 
 int main()
@@ -555,8 +583,12 @@ int main()
             if ((GetAsyncKeyState(VK_LEFT) & 0x8000) && canMove(-1, 0)) x--;
             if ((GetAsyncKeyState(VK_RIGHT) & 0x8000) && canMove(1, 0)) x++;
             if ((GetAsyncKeyState(VK_DOWN) & 0x8000) && canMove(0, 1)) y++;
-            if ((GetAsyncKeyState('C') & 0x8000)) {
+            if (GetAsyncKeyState('C') & 0x8000){
                 rotateBlockClock();
+                _sleep(100); // Delay nhỏ để tránh xoay quá nhanh
+            }
+            if (GetAsyncKeyState('Z') & 0x8000) {
+                rotateBlockCterClock();
                 _sleep(100); // Delay nhỏ để tránh xoay quá nhanh
             }
             if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
