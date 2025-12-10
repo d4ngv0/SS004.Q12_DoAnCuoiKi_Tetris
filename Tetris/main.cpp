@@ -13,7 +13,10 @@ using namespace std;
 
 #define H 20
 #define W 15
-
+#define SETTING_SOUND 3
+#define SETTING_SPEED 1
+#define SETTING_VOLUMN 2
+#define SETTING_RESUME 0
 // --- Khai báo biến toàn cục ---
 char board[H][W] = {};
 char blocks[][4][4] = {
@@ -34,13 +37,14 @@ int currentSpeed = 0;
 int level = 1;
 int score = 0; // Thêm điểm số
 int next_b=0;
+bool menuTriggered = false;
 int x = 4, y = 0, b = 1;
 bool isGameOver = false;
 enum Screen { GAMEPLAY, MENU, PAUSE };
 Screen screenState = GAMEPLAY;
-int menuIndex = 0; // mục đang chọn trong menu
-const char* menuItems[] = {"Sound enabled", "Volume", "Fall speed", "Resume"};
-const int menuCount = sizeof(menuItems) / sizeof(menuItems[0]);
+int resumeMenuIndex = 0; // mục đang chọn trong menu
+const char* resumeMenuItems[] = {"Sound enabled", "Volume", "Fall speed", "Resume"};
+const int resumeMenuCount = sizeof(resumeMenuItems) / sizeof(resumeMenuItems[0]);
 
 // --- Các hàm đồ họa & Logic ---
 
@@ -50,6 +54,10 @@ struct Settings {
     int fallSpeedPercent = 100; // 50-200 (map vào 'speed' của game)
 };
 Settings settings;
+
+int randomInRange(int a, int b){
+    return rand() % b + a;
+}
 
 void gotoxy(int x, int y) {
     COORD c = {(short)x, (short)y};
@@ -63,31 +71,30 @@ void clearLine(int y, int width = 50) {
 }
 
 //Hàm vẽ menu console
-void drawMenu() {
-
+void drawResumeMenu() {
     // Clear vùng menu (10 dòng đầu)
     for(int i = 0; i < 12; i++) {
         clearLine(i);
     }
 
     gotoxy(0,0);
-    cout << "===== MENU CHINH =====\n\n";
+    cout << "===== PAUSE MENU =====\n\n";
 
-    for (int i = 0; i < menuCount; ++i) {
-        if (i == menuIndex) cout << " > ";
+    for (int i = 0; i < resumeMenuCount; ++i) {
+        if (i == resumeMenuIndex) cout << " > ";
         else cout << "   ";
 
-        if (i == 0)
-            cout << "Sound enabled: " << (settings.soundEnabled ? "ON" : "OFF") << "\n";
-        else if (i == 1)
-            cout << "Volume: " << settings.volumePercent << "%\n";
-        else if (i == 2)
-            cout << "Fall speed: " << settings.fallSpeedPercent << "%\n";
-        else if (i == 3)
+        if (i == SETTING_RESUME)
             cout << "Resume game\n";
+        else if (i == SETTING_VOLUMN)
+            cout << "Volume: " << settings.volumePercent << "%\n";
+        else if (i == SETTING_SPEED)
+            cout << "Fall speed: " << settings.fallSpeedPercent << "%\n";
+        else if (i == SETTING_SOUND)
+            cout << "Sound enabled: " << (settings.soundEnabled ? "ON" : "OFF") << "\n";
     }
 
-    cout << "\nUp/Down Arrow: Chon muc | Left/Right Arrow: Giam/Tang | Enter | ESC/M\n";
+    cout << "\nUp/Down Arrow: Browse | Left/Right Arrow: Decrease/Increase | ESC: Resume" ;
 }
 
 // Hàm chỉnh tốc độ rơi của khối 50% (nhanh) --> 200% (chậm)
@@ -99,53 +106,88 @@ void applyFallSpeed() {
     if (speed < 50) speed = 50; // đừng quá nhanh để tránh “rơi liên tục”
 }
 
-void handleMenuInput() {
+void handleResumeMenuInput() {
     // Di chuyển chọn bằng mũi tên lên/xuống
+    bool action = false;
     if (GetAsyncKeyState(VK_UP) & 0x8000) {
-        if (menuIndex > 0) menuIndex--;
-        Sleep(120); // chống lặp quá nhanh
-    }
-    if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
-        if (menuIndex < menuCount - 1) menuIndex++;
-        Sleep(120);
+        if (resumeMenuIndex == 0) resumeMenuIndex = resumeMenuCount;
+        if (resumeMenuIndex > 0) resumeMenuIndex--;
+        Sleep(200);
+        action = true;
     }
 
+
+    if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
+        if (resumeMenuIndex == resumeMenuCount - 1) resumeMenuIndex = -1;
+        if (resumeMenuIndex < resumeMenuCount - 1) resumeMenuIndex++;
+        Sleep(200);
+        action = true;
+    }
+    // Enter: thực thi mục Resume
+//    if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
+//        if (resumeMenuIndex == SETTING_RESUME) {
+//
+//        }
+//    }
     // Điều chỉnh giá trị bằng mũi tên trái/phải
     if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
-        if (menuIndex == 0) {
-            settings.soundEnabled = !settings.soundEnabled;
-        } else if (menuIndex == 1) {
-            settings.volumePercent = max(0, settings.volumePercent - 5);
-        } else if (menuIndex == 2) {
-            settings.fallSpeedPercent = max(50, settings.fallSpeedPercent - 5);
-            applyFallSpeed();
+        switch (resumeMenuIndex){
+            case SETTING_SOUND:{
+                settings.soundEnabled = !settings.soundEnabled;
+                break;
+            }
+            case SETTING_SPEED:{
+                settings.fallSpeedPercent = max(50, settings.fallSpeedPercent - 5);
+                applyFallSpeed();
+                break;
+            }
+            case SETTING_VOLUMN:{
+                settings.volumePercent = max(0, settings.volumePercent - 5);
+                break;
+            }
+            case SETTING_RESUME:{
+                screenState = GAMEPLAY; // quay lại chơi
+                system("cls");
+                break;
+            }
         }
         Sleep(120);
+        action = true;
     }
     if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
-        if (menuIndex == 0) {
-            settings.soundEnabled = !settings.soundEnabled;
-        } else if (menuIndex == 1) {
-            settings.volumePercent = min(100, settings.volumePercent + 5);
-        } else if (menuIndex == 2) {
-            settings.fallSpeedPercent = min(200, settings.fallSpeedPercent + 5);
-            applyFallSpeed();
+        switch (resumeMenuIndex){
+            case SETTING_SOUND:{
+                settings.soundEnabled = !settings.soundEnabled;
+                break;
+            }
+            case SETTING_SPEED:{
+                settings.fallSpeedPercent = min(200, settings.fallSpeedPercent + 5);
+                applyFallSpeed();
+                break;
+            }
+            case SETTING_VOLUMN:{
+                settings.volumePercent = min(100, settings.volumePercent + 5);
+                break;
+            }
+            case SETTING_RESUME:{
+                screenState = GAMEPLAY; // quay lại chơi
+                system("cls");
+                break;
+            }
         }
+        Sleep(120);
+        action = true;
+    }
+
+    // ESC: thoát menu
+    if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
+        screenState = GAMEPLAY;
+        system("cls");
         Sleep(120);
     }
 
-    // Enter: thực thi mục Resume
-    if (GetAsyncKeyState(VK_RETURN) & 0x8000) {
-        if (menuIndex == 3) {
-            screenState = GAMEPLAY; // quay lại chơi
-        }
-        Sleep(150);
-    }
-
-    // ESC hoặc M: thoát menu
-    if ((GetAsyncKeyState(VK_ESCAPE) & 0x8000) || (GetAsyncKeyState('M') & 0x8000)) {
-        screenState = GAMEPLAY;
-        Sleep(150);
+    if (action){
+        drawResumeMenu();
     }
 }
 
@@ -171,8 +213,8 @@ void resetGame() {
     level = 1;
     score = 0;
     x = 4; y = 0;
-    b = rand() % 7;
-    next_b=rand() %7;
+    b = randomInRange(0, 7);
+    next_b = randomInRange(0, 7);;
     isGameOver = false;
     system("cls"); // Xóa màn hình console
 }
@@ -209,10 +251,13 @@ void draw() {
             }
         }
     }
-    gotoxy(uiX, 16); cout << "--- KEYS ---";
-    gotoxy(uiX, 17); cout << " A, D : Move";
-    gotoxy(uiX, 18); cout << " W    : Rotate";
-    gotoxy(uiX, 19); cout << " S    : Drop";
+
+    gotoxy(uiX, 15); cout << "--- KEYS ---";
+    gotoxy(uiX, 16); cout << " Left, Right Arrow : Move";
+    gotoxy(uiX, 17); cout << " C                 : Rotate";
+    gotoxy(uiX, 18); cout << " Down Arrow        : Soft drop";
+    gotoxy(uiX, 19); cout << " SPACE : Hard drop";
+    gotoxy(uiX, 20); cout << " M     : Menu";
 }
 
 void showGameOverScreen() {
@@ -297,7 +342,20 @@ bool canRotate(char temp[4][4]) {
     return true;
 }
 
-void rotateBlock() {
+void rotateBlockClock() {
+    char temp[4][4];
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 4; j++)
+            temp[j][3 - i] = blocks[b][i][j];
+
+    if (canRotate(temp)) {
+        for (int i = 0; i < 4; i++)
+            for (int j = 0; j < 4; j++)
+                blocks[b][i][j] = temp[i][j];
+    }
+}
+
+void rotateBlockCterClock() {
     char temp[4][4];
     for (int i = 0; i < 4; i++)
         for (int j = 0; j < 4; j++)
@@ -327,7 +385,7 @@ void hardDrop(){
     }
     block2Board();
     removeLine();
-    x = 5; y = 0; b = rand() % 7;
+    x = 5; y = 0; b = next_b; next_b = randomInRange(0, 7);
     currentSpeed = 0;
 }
 
@@ -453,10 +511,14 @@ vector<vector<string>> processJSON(string json){
     return datas;
 }
 
-void debug(vector<vector<string>> datas){
-    for (int i = 0; i < datas.size(); i++){
-        cout<<datas[i][0]<<" "<<datas[i][1]<<" "<<datas[i][2]<<"\n";
-    }
+//void debug(vector<vector<string>> datas){
+//    for (int i = 0; i < datas.size(); i++){
+//        cout<<datas[i][0]<<" "<<datas[i][1]<<" "<<datas[i][2]<<"\n";
+//    }
+//}
+
+void debug(){
+    cout<<b<<" "<<next_b<<"\n";
 }
 
 int main()
@@ -464,7 +526,7 @@ int main()
     SetConsoleOutputCP(437);
     srand(time(0));
     hideCursor();
-    bool menuTriggered = false;
+
     // Vòng lặp chính của ứng dụng (Game App Loop)
     while (true) {
         resetGame(); // 1. Khởi tạo dữ liệu mới
@@ -474,30 +536,28 @@ int main()
             if (GetAsyncKeyState('M') & 0x8000) {
                 if(!menuTriggered) {
                     screenState = MENU;
-                    menuIndex = 0;
+                    resumeMenuIndex = SETTING_RESUME;
                     system("cls");
-                    drawMenu();
+                    drawResumeMenu();
                     menuTriggered = true;
                 }
             }
             else menuTriggered = false;
 
             if (screenState == MENU) {
-                handleMenuInput();
-                drawMenu();
-                Sleep(50);
+                handleResumeMenuInput();
                 continue; // không xử lý gameplay khi đang ở menu
             }
 
             boardDelBlock(); // Xóa vị trí cũ của gạch
 
             // Xử lý Input
-            if ((GetAsyncKeyState('A') & 0x8000) && canMove(-1, 0)) x--;
-            if ((GetAsyncKeyState('D') & 0x8000) && canMove(1, 0)) x++;
-            if ((GetAsyncKeyState('S') & 0x8000) && canMove(0, 1)) y++;
-            if ((GetAsyncKeyState('W') & 0x8000)) {
-                rotateBlock();
-                Sleep(100); // Delay nhỏ để tránh xoay quá nhanh
+            if ((GetAsyncKeyState(VK_LEFT) & 0x8000) && canMove(-1, 0)) x--;
+            if ((GetAsyncKeyState(VK_RIGHT) & 0x8000) && canMove(1, 0)) x++;
+            if ((GetAsyncKeyState(VK_DOWN) & 0x8000) && canMove(0, 1)) y++;
+            if ((GetAsyncKeyState('C') & 0x8000)) {
+                rotateBlockClock();
+                _sleep(100); // Delay nhỏ để tránh xoay quá nhanh
             }
             if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
                 hardDrop();
@@ -515,8 +575,8 @@ int main()
                     // Nếu không rơi được nữa -> Chạm đáy/Gạch khác
                     block2Board(); // Cố định gạch vào board
                     removeLine();  // Ăn điểm
-                    b=next_b;
-                    next_b=rand() %7;
+                    b = next_b;
+                    next_b = randomInRange(0, 7);
 
                     // --- SINH GẠCH MỚI VÀ KIỂM TRA THUA ---
                     x = 4; y = 0;
@@ -529,7 +589,8 @@ int main()
             }
 
             block2Board(); // Vẽ gạch vào vị trí mới
-            draw();        // Render màn hình
+            draw(); // Render màn hình
+            debug();
             Sleep(tick);  // Giữ FPS ổn định
         }
 
