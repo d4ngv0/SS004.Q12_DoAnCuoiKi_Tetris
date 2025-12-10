@@ -254,10 +254,10 @@ void draw() {
 
     gotoxy(uiX, 15); cout << "--- KEYS ---";
     gotoxy(uiX, 16); cout << " Left, Right Arrow : Move";
-    gotoxy(uiX, 17); cout << " C                 : Rotate";
+    gotoxy(uiX, 17); cout << " Z, C              : Rotate";
     gotoxy(uiX, 18); cout << " Down Arrow        : Soft drop";
-    gotoxy(uiX, 19); cout << " SPACE : Hard drop";
-    gotoxy(uiX, 20); cout << " M     : Menu";
+    gotoxy(uiX, 19); cout << " SPACE             : Hard drop";
+    gotoxy(uiX, 20); cout << " M                 : Menu";
 }
 
 void showGameOverScreen() {
@@ -622,7 +622,7 @@ int main()
 
             block2Board(); // Vẽ gạch vào vị trí mới
             draw(); // Render màn hình
-            debug();
+//            debug();
             Sleep(tick);  // Giữ FPS ổn định
         }
 
