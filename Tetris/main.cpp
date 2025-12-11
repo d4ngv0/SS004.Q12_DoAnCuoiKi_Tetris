@@ -30,6 +30,7 @@ char blocks[][4][4] = {
 };
 
 const int tick = 50; // 20 fps
+string name = "";
 string localDir = "scoreboards.txt";
 string apiURL = "https://script.google.com/macros/s/AKfycbyBSofw1Jugm68awOHDcthLfNzTuGC_2rxkbTafpgLc3w1NIfnHKwvJmOfIC_0FEuoX/exec";
 int speed = 1000;
@@ -40,7 +41,7 @@ int next_b=0;
 bool menuTriggered = false;
 int x = 4, y = 0, b = 1;
 bool isGameOver = false;
-enum Screen { GAMEPLAY, MENU, PAUSE };
+enum Screen { GAMEPLAY, MENU, PAUSE, SAVE, SUBMIT, SUBMITTING };
 Screen screenState = GAMEPLAY;
 int resumeMenuIndex = 0; // mục đang chọn trong menu
 const char* resumeMenuItems[] = {"Sound enabled", "Volume", "Fall speed", "Resume"};
@@ -264,9 +265,35 @@ void showGameOverScreen() {
     gotoxy(W - 4, H / 2 - 2); cout << "=============";
     gotoxy(W - 4, H / 2 - 1); cout << "  GAME OVER  ";
     gotoxy(W - 4, H / 2);     cout << "=============";
+    gotoxy(W - 4, H / 2 + 1); cout << "                           ";
     gotoxy(W - 4, H / 2 + 2); cout << "Score: " << score;
-    gotoxy(W - 4, H / 2 + 4); cout << "Press 'R' to Replay";
-    gotoxy(W - 4, H / 2 + 5); cout << "Press 'ESC' to Quit";
+    gotoxy(W - 4, H / 2 + 3); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 4); cout << "Press 'SPACE' to Replay    ";
+    gotoxy(W - 4, H / 2 + 5); cout << "Press 'Z' to Save score    ";
+    gotoxy(W - 4, H / 2 + 6); cout << "Press 'C' to Submit score  ";
+    gotoxy(W - 4, H / 2 + 7); cout << "Press 'ESC' to Quit        ";
+}
+
+void showInputSaveLocalScore() {
+    gotoxy(W - 4, H / 2 + 3); cout << "Input your name:       ";
+    gotoxy(W - 4, H / 2 + 4); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 5); cout << "Press 'ENTER' to Save      ";
+    gotoxy(W - 4, H / 2 + 6); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 7); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 4);
+    FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));
+    cin >> name;
+}
+
+void showInputSubmitGlobalScore() {
+    gotoxy(W - 4, H / 2 + 3); cout << "Input your name:       ";
+    gotoxy(W - 4, H / 2 + 4); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 5); cout << "Press 'ENTER' to Submit    ";
+    gotoxy(W - 4, H / 2 + 6); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 7); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 4);
+    FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));
+    cin >> name;
 }
 
 // Logic khối gạch (Giữ nguyên như cũ)
@@ -448,7 +475,7 @@ void deleteLocalLdb(){
 void addScore2GlobalLdb(string name, int score){
     string data = "\"name="+name+"&score="+to_string(score)+"\" ";
     try {
-        string json = execCurl("curl -d " + data + apiURL);
+        string json = execCurl("curl -s -d " + data + apiURL);
     } catch (...){
         cout<<"Error! Can't push score to global leaderboard!\n";
     }
@@ -537,6 +564,25 @@ vector<vector<string>> processJSON(string json){
     }
 
     return datas;
+}
+
+void handleSaveLocalScoreInput(){
+    if (GetAsyncKeyState(VK_RETURN) & 0x8000){
+        name = "\"" + name + "\"";
+        addScore2LocalLdb(name, score);
+        screenState = GAMEPLAY;
+        showGameOverScreen();
+    }
+}
+
+void handleSubmitGlobalScoreInput(){
+    if (GetAsyncKeyState(VK_RETURN) & 0x8000){
+        gotoxy(W - 4, H / 2 + 6); cout << "Submitting your score, please wait...";
+        screenState = SUBMITTING;
+        addScore2GlobalLdb(name, score);
+        screenState = GAMEPLAY;
+        showGameOverScreen();
+    }
 }
 
 //void debug(vector<vector<string>> datas){
@@ -631,12 +677,32 @@ int main()
 
         // Đợi người chơi chọn: R để chơi lại, ESC để thoát hẳn
         while (true) {
-            if (GetAsyncKeyState('R') & 0x8000) {
+            if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
                 break; // Thoát vòng lặp chờ -> Quay lại vòng lặp Game App -> resetGame()
+            }
+            if (GetAsyncKeyState('Z') & 0x8000){
+                showInputSaveLocalScore();
+                screenState = SAVE;
+            }
+            if (GetAsyncKeyState('C') & 0x8000){
+                showInputSubmitGlobalScore();
+                screenState = SUBMIT;
             }
             if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
                 return 0; // Thoát chương trình
             }
+            switch (screenState){
+                case SAVE:{
+                    handleSaveLocalScoreInput();
+                    break;
+                }
+                case SUBMIT:{
+                    handleSubmitGlobalScoreInput();
+                    break;
+                }
+
+            }
+
             Sleep(100);
         }
     }
