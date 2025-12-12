@@ -40,8 +40,10 @@ int next_b=0;
 bool menuTriggered = false;
 int x = 4, y = 0, b = 1;
 bool isGameOver = false;
+enum Mode { CLASSIC, INVISIBLE };
 enum Screen { GAMEPLAY, MENU, PAUSE };
 Screen screenState = GAMEPLAY;
+Mode gameMode = CLASSIC;
 int resumeMenuIndex = 0; // mục đang chọn trong menu
 const char* resumeMenuItems[] = {"Sound enabled", "Volume", "Fall speed", "Resume"};
 const int resumeMenuCount = sizeof(resumeMenuItems) / sizeof(resumeMenuItems[0]);
@@ -94,7 +96,7 @@ void drawResumeMenu() {
             cout << "Sound enabled: " << (settings.soundEnabled ? "ON" : "OFF") << "\n";
     }
 
-    cout << "\nUp/Down Arrow: Browse | Left/Right Arrow: Decrease/Increase | ESC: Resume" ;
+    cout << "\nUp/Down Arrow: Browse | Left/Right Arrow: Decrease/Increase/Select | ESC: Resume" ;
 }
 
 // Hàm chỉnh tốc độ rơi của khối 50% (nhanh) --> 200% (chậm)
@@ -225,9 +227,12 @@ void draw() {
         for (int j = 0; j < W; j++) {
             if (board[i][j] == ' ') cout << "  ";
             else if (board[i][j] == '#') cout << (unsigned char)219 << (unsigned char)219; // Tường
-            else cout << (unsigned char)219 << (unsigned char)219; // Gạch
+            else if ((gameMode != INVISIBLE) || (gameMode == INVISIBLE && i >= y && i <= y + 3 && j >= x && j <= x + 3 && blocks[b][i-y][j-x] != ' ')) cout << (unsigned char)219 << (unsigned char)219; // Gạch
+            else cout << "  ";
         }
     }
+
+
     int uiX = W * 2 + 4;
 
 
@@ -300,6 +305,13 @@ void increaseSpeed(int percent) {
     if (speed > 100) speed = speed * (100 - percent) / 100;
 }
 
+void removeLineAnimation(int dy){
+    gotoxy(1*2, dy);
+    for (int j = 1; j < W - 1; j++){
+        cout<<"##";
+    }
+}
+
 void removeLine() {
     int linesCleared = 0;
     for (int i = H - 2; i > 0; i--) {
@@ -311,14 +323,17 @@ void removeLine() {
             }
         }
         if (isFull) {
+            removeLineAnimation(i - linesCleared);
             for (int k = i; k > 0; k--)
                 for (int j = 1; j < W - 1; j++)
                     board[k][j] = board[k - 1][j];
             for (int j = 1; j < W - 1; j++) board[0][j] = ' ';
+
             i++;
             linesCleared++;
         }
     }
+    _sleep(400);
     if (linesCleared > 0) {
         score += linesCleared * 100 * level;
         if (score >= level * 500) {
@@ -418,6 +433,27 @@ void hardDrop(){
         isGameOver = true;
     }
     currentSpeed = 0;
+}
+
+void handleGameInput(){
+    if ((GetAsyncKeyState(VK_LEFT) & 0x8000) && canMove(-1, 0)) x--;
+    if ((GetAsyncKeyState(VK_RIGHT) & 0x8000) && canMove(1, 0)) x++;
+    if ((GetAsyncKeyState(VK_DOWN) & 0x8000) && canMove(0, 1)) y++;
+    if (GetAsyncKeyState('C') & 0x8000){
+        rotateBlockClock();
+        _sleep(100); // Delay nhỏ để tránh xoay quá nhanh
+    }
+    if (GetAsyncKeyState('Z') & 0x8000) {
+        rotateBlockCterClock();
+        _sleep(100); // Delay nhỏ để tránh xoay quá nhanh
+    }
+    if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
+        hardDrop();
+        _sleep(100);
+    }
+    if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
+        isGameOver = true; // Thoát game chủ động
+    }
 }
 
 string execCurl(string cmd) {
@@ -542,14 +578,15 @@ vector<vector<string>> processJSON(string json){
     return datas;
 }
 
-//void debug(vector<vector<string>> datas){
-//    for (int i = 0; i < datas.size(); i++){
-//        cout<<datas[i][0]<<" "<<datas[i][1]<<" "<<datas[i][2]<<"\n";
-//    }
-//}
-
 void debug(){
-    cout<<x<<" "<<y<<"\n";
+    ofstream ost("text.txt");
+    for (int i = 0; i < H; i++){
+        for (int j = 0; j < W; j++){
+            ost<<board[i][j];
+        }
+        ost<<"\n";
+    }
+    ost.close();
 }
 
 int main()
@@ -557,7 +594,7 @@ int main()
     SetConsoleOutputCP(437);
     srand(time(0));
     hideCursor();
-
+    gameMode = CLASSIC;
     // Vòng lặp chính của ứng dụng (Game App Loop)
     while (true) {
         resetGame(); // 1. Khởi tạo dữ liệu mới
@@ -583,24 +620,7 @@ int main()
             boardDelBlock(); // Xóa vị trí cũ của gạch
 
             // Xử lý Input
-            if ((GetAsyncKeyState(VK_LEFT) & 0x8000) && canMove(-1, 0)) x--;
-            if ((GetAsyncKeyState(VK_RIGHT) & 0x8000) && canMove(1, 0)) x++;
-            if ((GetAsyncKeyState(VK_DOWN) & 0x8000) && canMove(0, 1)) y++;
-            if (GetAsyncKeyState('C') & 0x8000){
-                rotateBlockClock();
-                _sleep(100); // Delay nhỏ để tránh xoay quá nhanh
-            }
-            if (GetAsyncKeyState('Z') & 0x8000) {
-                rotateBlockCterClock();
-                _sleep(100); // Delay nhỏ để tránh xoay quá nhanh
-            }
-            if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
-                hardDrop();
-                _sleep(200);
-            }
-            if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
-                isGameOver = true; // Thoát game chủ động
-            }
+            handleGameInput();
 
             // Xử lý rơi tự do
             if (canFall()) {
@@ -624,8 +644,8 @@ int main()
             }
 
             block2Board(); // Vẽ gạch vào vị trí mới
-            draw(); // Render màn hình
 //            debug();
+            draw(); // Render màn hình
             Sleep(tick);  // Giữ FPS ổn định
         }
 
