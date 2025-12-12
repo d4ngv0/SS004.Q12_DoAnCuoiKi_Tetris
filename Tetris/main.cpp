@@ -414,6 +414,9 @@ void hardDrop(){
     block2Board();
     removeLine();
     x = 5; y = 0; b = next_b; next_b = randomInRange(0, 7);
+    if (!canMove(0, 0)) {
+        isGameOver = true;
+    }
     currentSpeed = 0;
 }
 
