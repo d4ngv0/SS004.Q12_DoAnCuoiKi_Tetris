@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <cmath>
 #include <ctime>
+#include <mmsystem.h>    // Cho PlaySound
+#pragma comment(lib, "winmm.lib") // Liên kết thư viện
 
 using namespace std;
 
@@ -17,6 +19,12 @@ using namespace std;
 #define SETTING_SPEED 1
 #define SETTING_VOLUMN 2
 #define SETTING_RESUME 0
+
+#define COLOR_RESET     "\033[0m"
+#define COLOR_BLUE_BG   "\033[44m"
+#define COLOR_YELLOW    "\033[93m"
+#define COLOR_CYAN      "\033[96m"
+#define COLOR_WHITE     "\033[97m"
 // --- Khai báo biến toàn cục ---
 char board[H][W] = {};
 char blocks[][4][4] = {
@@ -40,12 +48,14 @@ int next_b=0;
 bool menuTriggered = false;
 int x = 4, y = 0, b = 1;
 bool isGameOver = false;
-enum Screen { GAMEPLAY, MENU, PAUSE };
-Screen screenState = GAMEPLAY;
+enum Screen { MAINMENU, GAMEPLAY, MENU, PAUSE };
+const char* mainMenuItems[] = {"START GAME", "SETTINGS", "EXIT"};
+Screen screenState = MAINMENU;
 int resumeMenuIndex = 0; // mục đang chọn trong menu
+const int mainMenuCount = 3;
 const char* resumeMenuItems[] = {"Sound enabled", "Volume", "Fall speed", "Resume"};
 const int resumeMenuCount = sizeof(resumeMenuItems) / sizeof(resumeMenuItems[0]);
-
+int mainMenuIndex = 0;
 // --- Các hàm đồ họa & Logic ---
 
 struct Settings {
@@ -70,6 +80,119 @@ void clearLine(int y, int width = 50) {
     for(int i = 0; i < width; i++) cout << " ";
 }
 
+// Hàm lấy kích thước Console thực tế
+void getConsoleSize(int &width, int &height) {
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+    width = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+    height = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+}
+
+// Hàm vẽ màn hình chính
+void drawMainMenu() {
+    system("cls");
+
+    // Lấy kích thước console thực tế
+    int consoleWidth = 80;
+    int consoleHeight = 25;
+    getConsoleSize(consoleWidth, consoleHeight);
+
+    // Kích thước menu mới: Rộng hơn để tạo padding, Cao hơn để tạo spacing
+    const int menuWidth = 40;
+    const int menuInternalSpacing = 1; // Khoảng cách dòng giữa các item menu
+
+    // Tiêu đề và nội dung
+    string title = "TETRIS GAME";
+    const char* items[] = {"START GAME", "SETTINGS", "EXIT"};
+    int nItems = sizeof(items) / sizeof(items[0]);
+    string hint = "W/S = Move    ENTER = Select";
+
+    // --- Tính toán Chiều Cao Khung Viền Menu (menuHeight) ---
+    // Tiêu đề (1) + Dòng trống (1) + Items (nItems) + Spacing (nItems-1) + Dòng trống (1)
+    const int menuContentHeight = 1 + 1 + nItems + (nItems - 1) * menuInternalSpacing + 1;
+    const int menuHeight = menuContentHeight + 2; // +2 cho viền trên/dưới
+
+    // --- Tính toán vị trí (Căn giữa hoàn toàn) ---
+    int startY = (consoleHeight - menuHeight) / 2;
+    int startX = (consoleWidth - menuWidth) / 2;
+
+    // Đảm bảo không bị tràn màn hình
+    if (startY < 0) startY = 0;
+    if (startX < 0) startX = 0;
+
+    // --- Vẽ Khung Viền (Box) ---
+    // Ký tự Unicode cho Box Drawing (cần SetConsoleOutputCP(437) ở main)
+    const char TL = (char)201, TR = (char)187; // Top Left/Right
+    const char BL = (char)200, BR = (char)188; // Bottom Left/Right
+    const char HZ = (char)205, VT = (char)186; // Horizontal/Vertical
+
+    // Vẽ 4 góc và viền ngang/dọc
+    gotoxy(startX, startY); cout << TL;
+    gotoxy(startX + menuWidth - 1, startY); cout << TR;
+    gotoxy(startX, startY + menuHeight - 1); cout << BL;
+    gotoxy(startX + menuWidth - 1, startY + menuHeight - 1); cout << BR;
+
+    for (int i = 1; i < menuWidth - 1; i++) {
+        gotoxy(startX + i, startY); cout << HZ;
+        gotoxy(startX + i, startY + menuHeight - 1); cout << HZ;
+    }
+
+    for (int i = 1; i < menuHeight - 1; i++) {
+        gotoxy(startX, startY + i); cout << VT;
+        gotoxy(startX + menuWidth - 1, startY + i); cout << VT;
+    }
+
+    // --- Vẽ Tiêu đề (Căn giữa ngang trong khung) ---
+    int titleX = startX + (menuWidth - title.size()) / 2;
+    gotoxy(titleX, startY + 1);
+    cout << COLOR_YELLOW << title << COLOR_RESET;
+
+    // --- Vẽ Menu Items (Căn giữa ngang trong khung) ---
+    int longestItemLength = 0;
+    for (int i = 0; i < nItems; ++i) {
+        longestItemLength = max(longestItemLength, (int)strlen(items[i]));
+    }
+
+    // Vị trí X bắt đầu để các item thẳng hàng (đã tính padding rộng hơn)
+    // Căn giữa dựa trên chiều dài mục dài nhất + prefix (3 ký tự)
+    int itemStartX = startX + (menuWidth - (longestItemLength + 3)) / 2;
+
+    int currentY = startY + 3; // Bắt đầu sau Tiêu đề và 1 dòng trống
+
+    for (int i = 0; i < nItems; i++) {
+        gotoxy(itemStartX, currentY);
+
+        if (i == mainMenuIndex) {
+            cout << COLOR_CYAN << " > " << items[i] << COLOR_RESET;
+        } else {
+            cout << COLOR_WHITE << "   " << items[i] << COLOR_RESET;
+        }
+
+        currentY += (1 + menuInternalSpacing); // Tăng Y lên 1 dòng item + khoảng cách
+    }
+
+    // --- Vẽ Hướng dẫn Phím (Căn giữa ngang bên dưới khung) ---
+    int hintX = (consoleWidth - hint.size()) / 2;
+    gotoxy(hintX, startY + menuHeight + 1);
+    cout << COLOR_BLUE_BG << COLOR_WHITE << hint << COLOR_RESET;
+}
+
+// Hàm chạy nhạc nền
+void playBackgroundMusic() {
+    // Nhạc WAV lặp đi lặp lại, chạy bất đồng bộ
+    PlaySound(TEXT("bgm.wav"), NULL, SND_FILENAME | SND_LOOP | SND_ASYNC);
+}
+
+// Hàm điều chỉnh âm lượng
+void setMusicVolume(int percent) {
+    if (percent < 0) percent = 0;
+    if (percent > 100) percent = 100;
+
+    DWORD volume = (DWORD)(0xFFFF * percent / 100); // 0-FFFF
+    DWORD volumeAllChannels = (volume & 0xFFFF) | (volume << 16); // Kênh trái/phải
+    waveOutSetVolume(NULL, volumeAllChannels); // Điều chỉnh volume toàn hệ thống
+}
+
 //Hàm vẽ menu console
 void drawResumeMenu() {
     // Clear vùng menu (10 dòng đầu)
@@ -78,7 +201,7 @@ void drawResumeMenu() {
     }
 
     gotoxy(0,0);
-    cout << "===== PAUSE MENU =====\n\n";
+    cout << "===== SETTINGS =====\n\n";
 
     for (int i = 0; i < resumeMenuCount; ++i) {
         if (i == resumeMenuIndex) cout << " > ";
@@ -143,6 +266,7 @@ void handleResumeMenuInput() {
             }
             case SETTING_VOLUMN:{
                 settings.volumePercent = max(0, settings.volumePercent - 5);
+                setMusicVolume(settings.volumePercent); // cập nhật volume
                 break;
             }
             case SETTING_RESUME:{
@@ -167,6 +291,7 @@ void handleResumeMenuInput() {
             }
             case SETTING_VOLUMN:{
                 settings.volumePercent = min(100, settings.volumePercent + 5);
+                setMusicVolume(settings.volumePercent); // cập nhật volume
                 break;
             }
             case SETTING_RESUME:{
@@ -217,6 +342,75 @@ void resetGame() {
     next_b = randomInRange(0, 7);;
     isGameOver = false;
     system("cls"); // Xóa màn hình console
+}
+
+void gameMenuLoop() {
+    resumeMenuIndex = 0;
+    drawResumeMenu(); // Vẽ menu pause lần đầu
+
+    while (screenState == MENU) {
+        // Xử lý input cho menu
+        handleResumeMenuInput();
+
+        // Sleep nhỏ để tránh chiếm CPU
+        Sleep(50);
+    }
+
+    // Khi thoát menu, xóa màn hình và quay lại gameplay
+    system("cls");
+}
+
+// Hàm xử lý input màn hình chính
+void handleMainMenu() {
+    static bool w_held = false;
+    static bool s_held = false;
+    static bool enter_held = false;
+
+    bool w_now = GetAsyncKeyState('W') & 0x8000;
+    bool s_now = GetAsyncKeyState('S') & 0x8000;
+    bool enter_now = GetAsyncKeyState(VK_RETURN) & 0x8000;
+
+    // Di chuyển menu lên
+    if (w_now && !w_held) {
+        mainMenuIndex = (mainMenuIndex + mainMenuCount - 1) % mainMenuCount;
+        drawMainMenu();
+    }
+    w_held = w_now;
+
+    // Di chuyển menu xuống
+    if (s_now && !s_held) {
+        mainMenuIndex = (mainMenuIndex + 1) % mainMenuCount;
+        drawMainMenu();
+    }
+    s_held = s_now;
+
+    // Chọn menu
+    if (enter_now && !enter_held) {
+        switch(mainMenuIndex) {
+            case 0: // START GAME
+                resetGame();
+                screenState = GAMEPLAY;
+                break;
+            case 1: // SETTINGS / MENU
+                screenState = MENU;
+                system("cls");
+                gameMenuLoop();
+                drawMainMenu();
+                break;
+            case 2: // EXIT
+                exit(0);
+        }
+    }
+    enter_held = enter_now;
+}
+
+void mainMenuLoop() {
+    drawMainMenu(); // vẽ menu ngay khi vào
+
+    while (screenState == MAINMENU) {
+        handleMainMenu(); // xử lý input
+        Sleep(20);
+    }
 }
 
 void draw() {
@@ -414,6 +608,9 @@ void hardDrop(){
     block2Board();
     removeLine();
     x = 5; y = 0; b = next_b; next_b = randomInRange(0, 7);
+    if (!canMove(0, 0)) {
+        isGameOver = true;
+    }
     currentSpeed = 0;
 }
 
@@ -551,13 +748,27 @@ void debug(){
 
 int main()
 {
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD dwMode = 0;
+    GetConsoleMode(hOut, &dwMode);
+    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    SetConsoleMode(hOut, dwMode);
     SetConsoleOutputCP(437);
     srand(time(0));
     hideCursor();
 
+    drawMainMenu();
+
+    playBackgroundMusic();       // Bắt đầu nhạc nền
+    setMusicVolume(settings.volumePercent); // Volume mặc định
     // Vòng lặp chính của ứng dụng (Game App Loop)
     while (true) {
         resetGame(); // 1. Khởi tạo dữ liệu mới
+        // ===== MAIN MENU =====
+        if (screenState == MAINMENU) {
+            mainMenuLoop();
+            continue;
+        }
         // Vòng lặp ván chơi (Gameplay Loop)
         while (!isGameOver) {
             // Phím mở menu
