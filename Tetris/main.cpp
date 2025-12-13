@@ -58,6 +58,14 @@ const int resumeMenuCount = sizeof(resumeMenuItems) / sizeof(resumeMenuItems[0])
 int mainMenuIndex = 0;
 // --- Các hàm đồ họa & Logic ---
 
+char currentBlock[4][4];// them block hien 
+
+void copyTemplateToCurrent(int idx) { 
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j)
+            currentBlock[i][j] = blocks[idx][i][j];
+}
+
 struct Settings {
     int volumePercent = 50;   // 0 - 100 (giả lập, vì hiện chưa có phát âm)
     bool soundEnabled = false; // có/không dùng hiệu ứng âm thanh sau này
@@ -344,7 +352,8 @@ void resetGame() {
     score = 0;
     x = 4; y = 0;
     b = randomInRange(0, 7);
-    next_b = randomInRange(0, 7);;
+    next_b = randomInRange(0, 7);
+    copyTemplateToCurrent(b);
     isGameOver = false;
     system("cls"); // Xóa màn hình console
 }
@@ -472,21 +481,21 @@ void showGameOverScreen() {
 void boardDelBlock() {
     for (int i = 0; i < 4; i++)
         for (int j = 0; j < 4; j++)
-            if (blocks[b][i][j] != ' ' && y + i < H && x + j < W)
+            if (currentBlock[i][j] != ' ' && y + i < H && x + j < W)
                 board[y + i][x + j] = ' ';
 }
 
 void block2Board() {
     for (int i = 0; i < 4; i++)
         for (int j = 0; j < 4; j++)
-            if (blocks[b][i][j] != ' ')
-                board[y + i][x + j] = blocks[b][i][j];
+            if (currentBlock[i][j] != ' ')
+                board[y + i][x + j] = currentBlock[i][j];
 }
 
 bool canMove(int dx, int dy) {
     for (int i = 0; i < 4; i++)
         for (int j = 0; j < 4; j++)
-            if (blocks[b][i][j] != ' ') {
+            if (currentBlock[i][j] != ' ') {
                 int tx = x + j + dx;
                 int ty = y + i + dy;
                 if (tx < 1 || tx >= W - 1 || ty >= H - 1) return false;
@@ -571,12 +580,12 @@ void rotateBlockClock() {
     char temp[4][4];
     for (int i = 0; i < 4; i++)
         for (int j = 0; j < 4; j++)
-            temp[j][3 - i] = blocks[b][i][j];
+            temp[j][3 - i] = currentBlock[i][j];
     int offset = 0;
     if (canRotate(temp, offset)) {
         for (int i = 0; i < 4; i++)
             for (int j = 0; j < 4; j++)
-                blocks[b][i][j] = temp[i][j];
+                currentBlock[i][j] = temp[i][j];
         x += offset;
     }
 }
@@ -585,12 +594,12 @@ void rotateBlockCterClock() {
     char temp[4][4];
     for (int i = 0; i < 4; i++)
         for (int j = 0; j < 4; j++)
-            temp[3-j][i] = blocks[b][i][j];
+            temp[3-j][i] = currentBlock[i][j];
     int offset = 0;
     if (canRotate(temp, offset)) {
         for (int i = 0; i < 4; i++)
             for (int j = 0; j < 4; j++)
-                blocks[b][i][j] = temp[i][j];
+                currentBlock[i][j] = temp[i][j];
         x += offset;
     }
 }
@@ -613,6 +622,7 @@ void hardDrop(){
     block2Board();
     removeLine();
     x = 5; y = 0; b = next_b; next_b = randomInRange(0, 7);
+    copyTemplateToCurrent(b);
     if (!canMove(0, 0)) {
         isGameOver = true;
     }
@@ -825,7 +835,7 @@ int main()
                     removeLine();  // Ăn điểm
                     b = next_b;
                     next_b = randomInRange(0, 7);
-
+                    copyTemplateToCurrent(b);
                     // --- SINH GẠCH MỚI VÀ KIỂM TRA THUA ---
                     x = 4; y = 0;
 
