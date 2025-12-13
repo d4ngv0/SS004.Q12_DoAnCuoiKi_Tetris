@@ -178,9 +178,12 @@ void drawMainMenu() {
 }
 
 // Hàm chạy nhạc nền
-void playBackgroundMusic() {
-    // Nhạc WAV lặp đi lặp lại, chạy bất đồng bộ
-    PlaySound(TEXT("bgm.wav"), NULL, SND_FILENAME | SND_LOOP | SND_ASYNC);
+void updateBackgroundMusic() {
+    if (settings.soundEnabled) {
+        PlaySound(TEXT("bgm.wav"), NULL, SND_FILENAME | SND_LOOP | SND_ASYNC);
+    } else {
+        PlaySound(NULL, 0, 0); // Dừng nhạc
+    }
 }
 
 // Hàm điều chỉnh âm lượng
@@ -257,6 +260,7 @@ void handleResumeMenuInput() {
         switch (resumeMenuIndex){
             case SETTING_SOUND:{
                 settings.soundEnabled = !settings.soundEnabled;
+                updateBackgroundMusic();
                 break;
             }
             case SETTING_SPEED:{
@@ -282,6 +286,7 @@ void handleResumeMenuInput() {
         switch (resumeMenuIndex){
             case SETTING_SOUND:{
                 settings.soundEnabled = !settings.soundEnabled;
+                updateBackgroundMusic();
                 break;
             }
             case SETTING_SPEED:{
@@ -759,7 +764,7 @@ int main()
 
     drawMainMenu();
 
-    playBackgroundMusic();       // Bắt đầu nhạc nền
+    updateBackgroundMusic();     // Bắt đầu nhạc nền
     setMusicVolume(settings.volumePercent); // Volume mặc định
     // Vòng lặp chính của ứng dụng (Game App Loop)
     while (true) {
