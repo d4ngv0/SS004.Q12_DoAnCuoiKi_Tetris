@@ -889,6 +889,7 @@ int main()
             Sleep(tick);  // Giữ FPS ổn định
         }
 
+        if (screenState == MAINMENU) continue;
         // --- Xử lý khi Game Over ---
         showGameOverScreen();
         isInGame = false;
