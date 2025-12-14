@@ -19,6 +19,8 @@ using namespace std;
 #define SETTING_SPEED 1
 #define SETTING_VOLUMN 2
 #define SETTING_RESUME 0
+#define SETTING_SOUND 3
+#define SETTING_BACK_TO_MAIN 4
 
 // Định nghĩa màu sắc cơ bản và nâng cao
 #define FOREGROUND_WHITE (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE)
@@ -33,9 +35,7 @@ int getBlockColor(char type) {
     return COLOR_BRIGHT_WHITE;          // Gạch màu trắng sáng
 }
 
-// --- 2. BIẾN TOÀN CỤC ---
-#define SETTING_SOUND 3
-#define SETTING_BACK_TO_MAIN 4
+
 
 #define COLOR_RESET     "\033[0m"
 #define COLOR_BLUE_BG   "\033[44m"
@@ -68,11 +68,13 @@ int x = 4, y = 0, b = 1;
 bool isGameOver = false;
 int resumeMenuIndex = 0;
 enum Screen { MAINMENU, GAMEPLAY, MENU, PAUSE, SAVE, SUBMIT, SUBMITTING };
-const char* mainMenuItems[] = {"START GAME", "SETTINGS", "EXIT"};
+
 Screen screenState = MAINMENU;
+const char* mainMenuItems[] = {"START GAME", "SETTINGS", "EXIT"};
 const int mainMenuCount = 3;
 const char* resumeMenuItems[] = {"Resume game", "Fall speed", "Volume", "Sound enabled", "Back to Main Menu"};
 const int resumeMenuCount = sizeof(resumeMenuItems) / sizeof(resumeMenuItems[0]);
+const int settingMenuCount = 5;
 int mainMenuIndex = 0;
 bool isInGame = false; // False = Ở Main Menu, True = Đang trong ván chơi
 
@@ -448,38 +450,69 @@ void setMusicVolume(int percent) {
 // --- 7. CÁC HÀM XỬ LÝ KHÁC ---
 
 void drawResumeMenu() {
+    system("cls");
     for(int i = 0; i < 12; i++) { clearLine(i); }
     gotoxy(0,0);
     cout << "===== PAUSE MENU =====\n\n";
     for (int i = 0; i < resumeMenuCount; ++i) {
         if (i == resumeMenuIndex) cout << " > "; else cout << "   ";
-        if (i == SETTING_RESUME) cout << "Resume game\n";
-        else if (i == SETTING_VOLUMN) cout << "Volume: " << settings.volumePercent << "%\n";
-        else if (i == SETTING_SPEED) cout << "Fall speed: " << settings.fallSpeedPercent << "%\n";
-        else if (i == SETTING_SOUND) cout << "Sound enabled: " << (settings.soundEnabled ? "ON" : "OFF") << "\n";
-    cout << "===== SETTINGS =====\n\n";
+        switch (i){
+            case SETTING_RESUME:{
+                cout << "Resume game\n";
+                break;
+            }
+            case SETTING_VOLUMN:{
+                cout << "Volume: " << settings.volumePercent << "%\n";
+                break;
+            }
+            case SETTING_SPEED:{
+                cout << "Fall speed: " << settings.fallSpeedPercent << "%\n";
+                break;
+            }
+            case SETTING_SOUND:{
+                cout << "Sound enabled: " << (settings.soundEnabled ? "ON" : "OFF") << "\n";
+                break;
+            }
+        }
+    }
+    cout << "\nUp/Down Arrow: Browse | Left/Right Arrow: Decrease/Increase/Select | ESC: Resume" ;
+}
 
-    int visibleItems = isInGame ? 5 : 4;
-    for (int i = 0; i < visibleItems; ++i) {
+void drawSettingMenu() {
+    system("cls");
+    for(int i = 0; i < 12; i++) { clearLine(i); }
+    gotoxy(0,0);
+    cout << "===== SETTINGS =====\n\n";
+    for (int i = 0; i < settingMenuCount; ++i) {
         if (i == resumeMenuIndex) cout << " > ";
         else cout << "   ";
 
-        if (i == SETTING_RESUME) {
-            if(isInGame) cout << "Resume game\n";
-            else cout << "Back       \n"; // Thêm khoảng trắng để xóa chữ cũ
+        switch (i){
+            case SETTING_RESUME:{
+                cout << "Resume game\n";
+                break;
+            }
+            case SETTING_VOLUMN:{
+                cout << "Volume: " << settings.volumePercent << "%\n";
+                break;
+            }
+            case SETTING_SPEED:{
+                cout << "Fall speed: " << settings.fallSpeedPercent << "%\n";
+                break;
+            }
+            case SETTING_SOUND:{
+                cout << "Sound enabled: " << (settings.soundEnabled ? "ON" : "OFF") << "\n";
+                break;
+            }
+            case SETTING_BACK_TO_MAIN:{
+                cout << "Back to main menu\n";
+                break;
+            }
         }
-        else if (i == SETTING_VOLUMN)
-            cout << "Volume: " << settings.volumePercent << "%\n";
-        else if (i == SETTING_SPEED)
-            cout << "Fall speed: " << settings.fallSpeedPercent << "%\n";
-        else if (i == SETTING_SOUND)
-            cout << "Sound enabled: " << (settings.soundEnabled ? "ON" : "OFF") << "\n";
-        else if (i == SETTING_BACK_TO_MAIN)
-            cout << "Back to main menu\n";
     }
-    cout << "\nUp/Down Arrow: Browse | Left/Right Arrow: Decrease/Increase | ESC: Resume" ;
+    cout << "\nUp/Down Arrow: Browse | Left/Right Arrow: Decrease/Increase/Select | ESC: Resume" ;
 }
-}
+
 
 void applyFallSpeed() {
     int base = 1000;
@@ -780,32 +813,6 @@ void showInputSubmitGlobalScore() {
     gotoxy(W - 4, H / 2 + 6); cout << "Press 'ESC' to Quit";
 }
 
-// Logic khối gạch (Giữ nguyên như cũ)
-//void boardDelBlock() {
-//    for (int i = 0; i < 4; i++)
-//        for (int j = 0; j < 4; j++)
-//            if (currentBlock[i][j] != ' ' && y + i < H && x + j < W)
-//                board[y + i][x + j] = ' ';
-//}
-//
-//void block2Board() {
-//    for (int i = 0; i < 4; i++)
-//        for (int j = 0; j < 4; j++)
-//            if (currentBlock[i][j] != ' ')
-//                board[y + i][x + j] = currentBlock[i][j];
-//}
-//
-//bool canMove(int dx, int dy) {
-//    for (int i = 0; i < 4; i++)
-//        for (int j = 0; j < 4; j++)
-//            if (currentBlock[i][j] != ' ') {
-//                int tx = x + j + dx;
-//                int ty = y + i + dy;
-//                if (tx < 1 || tx >= W - 1 || ty >= H - 1) return false;
-//                if (board[ty][tx] != ' ') return false;
-//            }
-//    return true;
-//}
 
 void increaseSpeed(int percent) {
     if (speed > 100) speed = speed * (100 - percent) / 100;
@@ -914,6 +921,18 @@ void hardDrop(){
         isGameOver = true;
     }
   currentSpeed = 0;
+}
+
+void handleGameInput(){
+    if ((GetAsyncKeyState(VK_LEFT) & 0x8000) && canMove(-1, 0)) x--;
+    if ((GetAsyncKeyState(VK_RIGHT) & 0x8000) && canMove(1, 0)) x++;
+    if ((GetAsyncKeyState(VK_DOWN) & 0x8000) && canMove(0, 1)) y++;
+
+    if (GetAsyncKeyState('C') & 0x8000){ rotateBlockClock(); Sleep(100); }
+    if (GetAsyncKeyState('Z') & 0x8000) { rotateBlockCterClock(); Sleep(100); }
+    if (GetAsyncKeyState(VK_SPACE) & 0x8000) { hardDrop(); Sleep(200); }
+    if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) { isGameOver = true; }
+
 }
 
 string execCurl(string cmd) {
@@ -1057,6 +1076,13 @@ void handleSubmitGlobalScoreInput(){
     }
 }
 
+void generateNextBlock(){
+    b = next_b;
+    next_b = randomInRange(0, 7);
+    copyTemplateToCurrent(b);
+    x = 4; y = 0;
+}
+
 void debug(){
     cout<<x<<" "<<y<<"\n";
 }
@@ -1078,9 +1104,9 @@ int main()
     setMusicVolume(settings.volumePercent); // Volume mặc định
     // Vòng lặp chính của ứng dụng (Game App Loop)
     while (true) {
-        resetGame(); // 1. Khởi tạo dữ liệu mới
         // ===== MAIN MENU =====
-        if (screenState == MAINMENU) {
+
+        if (screenState == MAINMENU){
             mainMenuLoop();
             continue;
         }
@@ -1104,16 +1130,8 @@ int main()
             }
 
             // Gameplay
+            handleGameInput();
             boardDelBlock();
-
-            if ((GetAsyncKeyState(VK_LEFT) & 0x8000) && canMove(-1, 0)) x--;
-            if ((GetAsyncKeyState(VK_RIGHT) & 0x8000) && canMove(1, 0)) x++;
-            if ((GetAsyncKeyState(VK_DOWN) & 0x8000) && canMove(0, 1)) y++;
-
-            if (GetAsyncKeyState('C') & 0x8000){ rotateBlockClock(); Sleep(100); }
-            if (GetAsyncKeyState('Z') & 0x8000) { rotateBlockCterClock(); Sleep(100); }
-            if (GetAsyncKeyState(VK_SPACE) & 0x8000) { hardDrop(); Sleep(200); }
-            if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) { isGameOver = true; }
 
             if (canFall()) {
                 if (canMove(0, 1)) {
@@ -1121,15 +1139,11 @@ int main()
                 } else {
                     block2Board();
                     removeLine();
-                    b = next_b;
-                    next_b = randomInRange(0, 7);
-                    copyTemplateToCurrent(b);
                     // --- SINH GẠCH MỚI VÀ KIỂM TRA THUA ---
-                    x = 4; y = 0;
+                    generateNextBlock();
                     if (!canMove(0, 0)) { isGameOver = true; }
                 }
             }
-
             block2Board();
             draw();
             Sleep(tick);
