@@ -54,7 +54,8 @@ char blocks[][4][4] = {
         {{' ',' ',' ',' '}, {' ',' ','L',' '}, {'L','L','L',' '}, {' ',' ',' ',' '}}
 };
 
-const int tick = 50;
+const int tick = 50; // 20 fps
+string name = "";
 string localDir = "scoreboards.txt";
 string apiURL = "https://script.google.com/macros/s/AKfycbyBSofw1Jugm68awOHDcthLfNzTuGC_2rxkbTafpgLc3w1NIfnHKwvJmOfIC_0FEuoX/exec";
 int speed = 1000;
@@ -67,7 +68,7 @@ int x = 4, y = 0, b = 1;
 bool isGameOver = false;
 int resumeMenuIndex = 0;
 const char* resumeMenuItems[] = {"Sound enabled", "Volume", "Fall speed", "Resume"};
-enum Screen { MAINMENU, GAMEPLAY, MENU, PAUSE };
+enum Screen { MAINMENU, GAMEPLAY, MENU, PAUSE, SAVE, SUBMIT, SUBMITTING };
 const char* mainMenuItems[] = {"START GAME", "SETTINGS", "EXIT"};
 Screen screenState = MAINMENU;
 int resumeMenuIndex = 0; // mục đang chọn trong menu
@@ -749,6 +750,35 @@ void showGameOverScreen() {
     gotoxy(W - 4, H / 2 - 2); cout << "=============";
     gotoxy(W - 4, H / 2 - 1); cout << "  GAME OVER  ";
     gotoxy(W - 4, H / 2);     cout << "=============";
+    gotoxy(W - 4, H / 2 + 1); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 2); cout << "Score: " << score;
+    gotoxy(W - 4, H / 2 + 3); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 4); cout << "Press 'SPACE' to Replay    ";
+    gotoxy(W - 4, H / 2 + 5); cout << "Press 'Z' to Save score    ";
+    gotoxy(W - 4, H / 2 + 6); cout << "Press 'C' to Submit score  ";
+    gotoxy(W - 4, H / 2 + 7); cout << "Press 'ESC' to Quit        ";
+}
+
+void showInputSaveLocalScore() {
+    gotoxy(W - 4, H / 2 + 3); cout << "Input your name:       ";
+    gotoxy(W - 4, H / 2 + 4); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 5); cout << "Press 'ENTER' to Save      ";
+    gotoxy(W - 4, H / 2 + 6); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 7); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 4);
+    FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));
+    cin >> name;
+}
+
+void showInputSubmitGlobalScore() {
+    gotoxy(W - 4, H / 2 + 3); cout << "Input your name:       ";
+    gotoxy(W - 4, H / 2 + 4); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 5); cout << "Press 'ENTER' to Submit    ";
+    gotoxy(W - 4, H / 2 + 6); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 7); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 4);
+    FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));
+    cin >> name;
     setColor(COLOR_WHITE);
     gotoxy(W - 4, H / 2 + 2); cout << "Score: " << score;
     gotoxy(W - 4, H / 2 + 4); cout << "Press 'R' to Replay";
@@ -884,14 +914,164 @@ void hardDrop(){
     block2Board();
     removeLine();
     x = 5; y = 0; b = next_b; next_b = randomInRange(0, 7);
+
     copyTemplateToCurrent(b);
     if (!canMove(0, 0)) {
-        isGameOver = true;
+        isGameOver = true; 
     }
-    currentSpeed = 0;
+  currentSpeed = 0;
 }
 
-void debug(){ cout<<x<<" "<<y<<"\n"; }
+string execCurl(string cmd) {
+    string result;
+    char buffer[256];
+
+    FILE* pipe = _popen(cmd.c_str(), "r");
+    if (!pipe) return "ERROR";
+
+    while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
+        result += buffer;
+    }
+
+    _pclose(pipe);
+    return result;
+}
+
+void addScore2LocalLdb(string name, int score){
+    ofstream ost;
+    ost.open(localDir, ios::out | ios::app);
+    ost<<name<<" "<<score<<"\n";
+    ost.close();
+}
+
+void deleteLocalLdb(){
+    ofstream ost(localDir);
+    ost<<"";
+    ost.close();
+}
+
+void addScore2GlobalLdb(string name, int score){
+    string data = "\"name="+name+"&score="+to_string(score)+"\" ";
+    try {
+        string json = execCurl("curl -s -d " + data + apiURL);
+    } catch (...){
+        cout<<"Error! Can't push score to global leaderboard!\n";
+   
+}
+
+string get10GlobalLdb(int page){
+    string json ="{}";
+    try {
+        json = execCurl("curl -L -s \"" + apiURL + "?page=" + to_string(page) + "\"");
+    } catch (...){
+        cout<<"Error! Can't get scores from global leaderboard!\n";
+    }
+    return json;
+}
+
+bool isNumber(string& s){
+    for (char c : s){
+        if (!isdigit(c)){
+            return false;
+        }
+    }
+    return true;
+}
+
+bool compareString(vector<string> a, vector<string> b){
+    return stoi(a[1]) > stoi(b[1]);
+}
+
+vector<vector<string>> getLocalDatas(){
+    string name, score;
+    vector<vector<string>> datas;
+    ifstream ifs(localDir);
+    while (ifs>>name>>score){
+        vector<string> line;
+        line.push_back(name);
+        if (isNumber(score)){
+            line.push_back(score);
+            datas.push_back(line);
+        } else{
+            continue;
+        }
+    }
+    ifs.close();
+    return datas;
+}
+
+string get10LocalLdb(){
+    string data = "";
+    vector<vector<string>> datas = getLocalDatas();
+    sort(datas.begin(), datas.end(), compareString);
+    for (int i = 0; i < (datas.size() < 10 ? datas.size() : 10); i++){
+        data += datas[i][0] + " " + datas[i][1] + "\n";
+    }
+    return data;
+}
+
+vector<vector<string>> processJSON(string json){
+    vector<vector<string>> datas;
+    stack<char> st;
+    int i = 1;
+    st.push(json[0]);
+    vector<string> line;
+    string data = "";
+
+    while (!st.empty()){
+        if (json[i] == ']'){
+            if (st.size() > 1){
+                line.push_back(data);
+                data = "";
+                datas.push_back(line);
+                line.clear();
+            }
+            st.pop();
+        } else if (json[i] == '['){
+            st.push(json[i]);
+        } else if (json[i] == ','){
+            if (st.size() > 1){
+                line.push_back(data);
+                data = "";
+            }
+        } else{
+            data += json[i];
+        }
+
+        i++;
+    }
+
+    return datas;
+}
+
+void handleSaveLocalScoreInput(){
+    if (GetAsyncKeyState(VK_RETURN) & 0x8000){
+        name = "\"" + name + "\"";
+        addScore2LocalLdb(name, score);
+        screenState = GAMEPLAY;
+        showGameOverScreen();
+    }
+}
+
+void handleSubmitGlobalScoreInput(){
+    if (GetAsyncKeyState(VK_RETURN) & 0x8000){
+        gotoxy(W - 4, H / 2 + 6); cout << "Submitting your score, please wait...";
+        screenState = SUBMITTING;
+        addScore2GlobalLdb(name, score);
+        screenState = GAMEPLAY;
+        showGameOverScreen();
+    }
+}
+
+//void debug(vector<vector<string>> datas){
+//    for (int i = 0; i < datas.size(); i++){
+//        cout<<datas[i][0]<<" "<<datas[i][1]<<" "<<datas[i][2]<<"\n";
+//    }
+//}
+
+void debug(){
+    cout<<x<<" "<<y<<"\n";
+}
 
 int main()
 {
@@ -973,6 +1153,17 @@ int main()
         isInGame = false;
         // Đợi người chơi chọn: R để chơi lại, ESC để thoát hẳn
         while (true) {
+            if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
+                break; // Thoát vòng lặp chờ -> Quay lại vòng lặp Game App -> resetGame()
+            }
+            if (GetAsyncKeyState('Z') & 0x8000){
+                showInputSaveLocalScore();
+                screenState = SAVE;
+            }
+            if (GetAsyncKeyState('C') & 0x8000){
+                showInputSubmitGlobalScore();
+                screenState = SUBMIT;
+            }
             if (GetAsyncKeyState('R') & 0x8000) {
                 screenState = GAMEPLAY;
                 break; // Thoát vòng lặp chờ -> Quay lại vòng lặp Game App -> resetGame()
@@ -985,6 +1176,18 @@ int main()
             if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
                 return 0;
             }
+            switch (screenState){
+                case SAVE:{
+                    handleSaveLocalScoreInput();
+                    break;
+                }
+                case SUBMIT:{
+                    handleSubmitGlobalScoreInput();
+                    break;
+                }
+
+            }
+
             Sleep(100);
         }
     }
