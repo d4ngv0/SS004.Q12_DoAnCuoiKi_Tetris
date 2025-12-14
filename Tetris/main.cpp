@@ -41,7 +41,7 @@ int getBlockColor(char type) {
 #define COLOR_BLUE_BG   "\033[44m"
 #define COLOR_YELLOW    "\033[93m"
 #define COLOR_CYAN      "\033[96m"
-#define COLOR_WHITE     "\033[97m"
+#define COLOR_WHITES     "\033[97m"
 // --- Khai báo biến toàn cục ---
 char board[H][W] = {};
 char blocks[][4][4] = {
@@ -67,11 +67,9 @@ bool menuTriggered = false;
 int x = 4, y = 0, b = 1;
 bool isGameOver = false;
 int resumeMenuIndex = 0;
-const char* resumeMenuItems[] = {"Sound enabled", "Volume", "Fall speed", "Resume"};
 enum Screen { MAINMENU, GAMEPLAY, MENU, PAUSE, SAVE, SUBMIT, SUBMITTING };
 const char* mainMenuItems[] = {"START GAME", "SETTINGS", "EXIT"};
 Screen screenState = MAINMENU;
-int resumeMenuIndex = 0; // mục đang chọn trong menu
 const int mainMenuCount = 3;
 const char* resumeMenuItems[] = {"Resume game", "Fall speed", "Volume", "Sound enabled", "Back to Main Menu"};
 const int resumeMenuCount = sizeof(resumeMenuItems) / sizeof(resumeMenuItems[0]);
@@ -83,6 +81,7 @@ char currentBlock[4][4];// them block hien
 // --- 3. HÀM HỖ TRỢ ---
 void setColor(int color) {
     SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
+}
 // --- Các hàm đồ họa & Logic ---
 void copyTemplateToCurrent(int idx) {
     for (int i = 0; i < 4; ++i)
@@ -117,7 +116,7 @@ void clearLine(int y, int width = 50) {
 void boardDelBlock() {
     for (int i = 0; i < 4; i++)
         for (int j = 0; j < 4; j++)
-            if (blocks[b][i][j] != ' ' && y + i < H && x + j < W)
+            if (currentBlock[i][j] != ' ' && y + i < H && x + j < W)
                 board[y + i][x + j] = ' ';
 }
 
@@ -125,15 +124,15 @@ void boardDelBlock() {
 void block2Board() {
     for (int i = 0; i < 4; i++)
         for (int j = 0; j < 4; j++)
-            if (blocks[b][i][j] != ' ')
-                board[y + i][x + j] = blocks[b][i][j];
+            if (currentBlock[i][j] != ' ')
+                board[y + i][x + j] = currentBlock[i][j];
 }
 
 // Kiểm tra va chạm
 bool canMove(int dx, int dy) {
     for (int i = 0; i < 4; i++)
         for (int j = 0; j < 4; j++)
-            if (blocks[b][i][j] != ' ') {
+            if (currentBlock[i][j] != ' ') {
                 int tx = x + j + dx;
                 int ty = y + i + dy;
                 if (tx < 1 || tx >= W - 1 || ty >= H - 1) return false;
@@ -229,7 +228,7 @@ void draw() {
         bool collide = false;
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
-                if (blocks[b][i][j] != ' ') {
+                if (currentBlock[i][j] != ' ') {
                     int tx = x + j;
                     int ty = ghostY + i + 1;
                     if (tx < 1 || tx >= W - 1 || ty >= H - 1 || board[ty][tx] != ' ') {
@@ -257,7 +256,7 @@ void draw() {
             else if (board[i][j] == ' ') {
                 bool isGhostPart = false;
                 if (i >= ghostY && i < ghostY + 4 && j >= x && j < x + 4) {
-                    if (blocks[b][i - ghostY][j - x] != ' ') {
+                    if (currentBlock[i - ghostY][j - x] != ' ') {
                         isGhostPart = true;
                     }
                 }
@@ -281,7 +280,7 @@ void draw() {
     // Vẽ gạch đang rơi (Active Block) đè lên tất cả
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
-            if (blocks[b][i][j] != ' ') {
+            if (currentBlock[i][j] != ' ') {
                 if (y + i < H - 1) {
                     gotoxy((x + j) * 2, y + i);
                     setColor(COLOR_BRIGHT_WHITE);
@@ -290,6 +289,8 @@ void draw() {
                 }
             }
         }
+    }
+}
 // Hàm lấy kích thước Console thực tế
 void getConsoleSize(int &width, int &height) {
     CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -407,42 +408,42 @@ void setMusicVolume(int percent) {
 }
 
 //Hàm vẽ menu console
-void drawResumeMenu() {
-    // Clear vùng menu (10 dòng đầu)
-    for(int i = 0; i < 30; i++) {
-        clearLine(i);
-    }
-
-    // Vẽ UI
-    int uiX = W * 2 + 4;
-    setColor(COLOR_BRIGHT_WHITE);
-    gotoxy(uiX, 4); cout << "Level: " << level;
-    gotoxy(uiX, 5); cout << "Score: " << score;
-
-    gotoxy(uiX, 8); cout << "--- NEXT ---";
-    for(int i=0; i<4; i++) { gotoxy(uiX + 2, 10 + i); cout << "        "; }
-
-    for (int i = 0; i < 4; i++) {
-        gotoxy(uiX + 2, 10 + i);
-        for (int j = 0; j < 4; j++) {
-            if (blocks[next_b][i][j] != ' ') {
-                setColor(COLOR_BRIGHT_WHITE);
-                cout << (unsigned char)219 << (unsigned char)219;
-                setColor(COLOR_WHITE);
-            } else {
-                cout << "  ";
-            }
-        }
-    }
-
-    setColor(COLOR_WHITE);
-    gotoxy(uiX, 15); cout << "--- KEYS ---";
-    gotoxy(uiX, 16); cout << " Left/Right : Move";
-    gotoxy(uiX, 17); cout << " Z, C       : Rotate";
-    gotoxy(uiX, 18); cout << " Down       : Soft drop";
-    gotoxy(uiX, 19); cout << " Space      : Hard drop";
-    gotoxy(uiX, 20); cout << " M          : Menu";
-}
+//void drawResumeMenu() {
+//    // Clear vùng menu (10 dòng đầu)
+//    for(int i = 0; i < 30; i++) {
+//        clearLine(i);
+//    }
+//
+//    // Vẽ UI
+//    int uiX = W * 2 + 4;
+//    setColor(COLOR_BRIGHT_WHITE);
+//    gotoxy(uiX, 4); cout << "Level: " << level;
+//    gotoxy(uiX, 5); cout << "Score: " << score;
+//
+//    gotoxy(uiX, 8); cout << "--- NEXT ---";
+//    for(int i=0; i<4; i++) { gotoxy(uiX + 2, 10 + i); cout << "        "; }
+//
+//    for (int i = 0; i < 4; i++) {
+//        gotoxy(uiX + 2, 10 + i);
+//        for (int j = 0; j < 4; j++) {
+//            if (blocks[next_b][i][j] != ' ') {
+//                setColor(COLOR_BRIGHT_WHITE);
+//                cout << (unsigned char)219 << (unsigned char)219;
+//                setColor(COLOR_WHITE);
+//            } else {
+//                cout << "  ";
+//            }
+//        }
+//    }
+//
+//    setColor(COLOR_WHITE);
+//    gotoxy(uiX, 15); cout << "--- KEYS ---";
+//    gotoxy(uiX, 16); cout << " Left/Right : Move";
+//    gotoxy(uiX, 17); cout << " Z/C        : Rotate";
+//    gotoxy(uiX, 18); cout << " Down       : Soft drop";
+//    gotoxy(uiX, 19); cout << " Space      : Hard drop";
+//    gotoxy(uiX, 20); cout << " M          : Menu";
+//}
 
 // --- 7. CÁC HÀM XỬ LÝ KHÁC ---
 
@@ -478,6 +479,7 @@ void drawResumeMenu() {
     }
     cout << "\nUp/Down Arrow: Browse | Left/Right Arrow: Decrease/Increase | ESC: Resume" ;
 }
+}
 
 void applyFallSpeed() {
     int base = 1000;
@@ -510,10 +512,6 @@ void handleResumeMenuInput() {
     }
     if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
         switch (resumeMenuIndex){
-            case SETTING_SOUND: settings.soundEnabled = !settings.soundEnabled; break;
-            case SETTING_SPEED: settings.fallSpeedPercent = max(50, settings.fallSpeedPercent - 5); applyFallSpeed(); break;
-            case SETTING_VOLUMN: settings.volumePercent = max(0, settings.volumePercent - 5); break;
-            case SETTING_RESUME: screenState = GAMEPLAY; system("cls"); break;
             case SETTING_SOUND:{
                 settings.soundEnabled = !settings.soundEnabled;
                 updateBackgroundMusic();
@@ -550,10 +548,6 @@ void handleResumeMenuInput() {
     }
     if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
         switch (resumeMenuIndex){
-            case SETTING_SOUND: settings.soundEnabled = !settings.soundEnabled; break;
-            case SETTING_SPEED: settings.fallSpeedPercent = min(200, settings.fallSpeedPercent + 5); applyFallSpeed(); break;
-            case SETTING_VOLUMN: settings.volumePercent = min(100, settings.volumePercent + 5); break;
-            case SETTING_RESUME: screenState = GAMEPLAY; system("cls"); break;
             case SETTING_SOUND:{
                 settings.soundEnabled = !settings.soundEnabled;
                 updateBackgroundMusic();
@@ -704,46 +698,46 @@ void mainMenuLoop() {
     }
 }
 
-void draw() {
-    gotoxy(0, 0);
-    for (int i = 0; i < H; i++, cout << "\n") {
-        for (int j = 0; j < W; j++) {
-            if (board[i][j] == ' ') cout << "  ";
-            else if (board[i][j] == '#') cout << (unsigned char)219 << (unsigned char)219; // Tường
-            else cout << (unsigned char)219 << (unsigned char)219; // Gạch
-        }
-    }
-    int uiX = W * 2 + 4;
-
-
-    gotoxy(uiX, 4); cout << "Level: " << level;
-    gotoxy(uiX, 5); cout << "Score: " << score;
-
-
-    gotoxy(uiX, 8); cout << "--- NEXT ---";
-
-    for(int i=0; i<4; i++) {
-        gotoxy(uiX + 2, 10 + i); cout << "        ";
-    }
-
-    for (int i = 0; i < 4; i++) {
-        gotoxy(uiX + 2, 10 + i);
-        for (int j = 0; j < 4; j++) {
-            if (blocks[next_b][i][j] != ' ') {
-                cout << (unsigned char)219 << (unsigned char)219;
-            } else {
-                cout << "  ";
-            }
-        }
-    }
-
-    gotoxy(uiX, 15); cout << "--- KEYS ---";
-    gotoxy(uiX, 16); cout << " Left, Right Arrow : Move";
-    gotoxy(uiX, 17); cout << " Z, C              : Rotate";
-    gotoxy(uiX, 18); cout << " Down Arrow        : Soft drop";
-    gotoxy(uiX, 19); cout << " SPACE             : Hard drop";
-    gotoxy(uiX, 20); cout << " M                 : Menu";
-}
+//void draw() {
+//    gotoxy(0, 0);
+//    for (int i = 0; i < H; i++, cout << "\n") {
+//        for (int j = 0; j < W; j++) {
+//            if (board[i][j] == ' ') cout << "  ";
+//            else if (board[i][j] == '#') cout << (unsigned char)219 << (unsigned char)219; // Tường
+//            else cout << (unsigned char)219 << (unsigned char)219; // Gạch
+//        }
+//    }
+//    int uiX = W * 2 + 4;
+//
+//
+//    gotoxy(uiX, 4); cout << "Level: " << level;
+//    gotoxy(uiX, 5); cout << "Score: " << score;
+//
+//
+//    gotoxy(uiX, 8); cout << "--- NEXT ---";
+//
+//    for(int i=0; i<4; i++) {
+//        gotoxy(uiX + 2, 10 + i); cout << "        ";
+//    }
+//
+//    for (int i = 0; i < 4; i++) {
+//        gotoxy(uiX + 2, 10 + i);
+//        for (int j = 0; j < 4; j++) {
+//            if (blocks[next_b][i][j] != ' ') {
+//                cout << (unsigned char)219 << (unsigned char)219;
+//            } else {
+//                cout << "  ";
+//            }
+//        }
+//    }
+//
+//    gotoxy(uiX, 15); cout << "--- KEYS ---";
+//    gotoxy(uiX, 16); cout << " Left, Right Arrow : Move";
+//    gotoxy(uiX, 17); cout << " Z, C              : Rotate";
+//    gotoxy(uiX, 18); cout << " Down Arrow        : Soft drop";
+//    gotoxy(uiX, 19); cout << " SPACE             : Hard drop";
+//    gotoxy(uiX, 20); cout << " M                 : Menu";
+//}
 
 void showGameOverScreen() {
     setColor(COLOR_RED);
@@ -787,31 +781,31 @@ void showInputSubmitGlobalScore() {
 }
 
 // Logic khối gạch (Giữ nguyên như cũ)
-void boardDelBlock() {
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 4; j++)
-            if (currentBlock[i][j] != ' ' && y + i < H && x + j < W)
-                board[y + i][x + j] = ' ';
-}
-
-void block2Board() {
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 4; j++)
-            if (currentBlock[i][j] != ' ')
-                board[y + i][x + j] = currentBlock[i][j];
-}
-
-bool canMove(int dx, int dy) {
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 4; j++)
-            if (currentBlock[i][j] != ' ') {
-                int tx = x + j + dx;
-                int ty = y + i + dy;
-                if (tx < 1 || tx >= W - 1 || ty >= H - 1) return false;
-                if (board[ty][tx] != ' ') return false;
-            }
-    return true;
-}
+//void boardDelBlock() {
+//    for (int i = 0; i < 4; i++)
+//        for (int j = 0; j < 4; j++)
+//            if (currentBlock[i][j] != ' ' && y + i < H && x + j < W)
+//                board[y + i][x + j] = ' ';
+//}
+//
+//void block2Board() {
+//    for (int i = 0; i < 4; i++)
+//        for (int j = 0; j < 4; j++)
+//            if (currentBlock[i][j] != ' ')
+//                board[y + i][x + j] = currentBlock[i][j];
+//}
+//
+//bool canMove(int dx, int dy) {
+//    for (int i = 0; i < 4; i++)
+//        for (int j = 0; j < 4; j++)
+//            if (currentBlock[i][j] != ' ') {
+//                int tx = x + j + dx;
+//                int ty = y + i + dy;
+//                if (tx < 1 || tx >= W - 1 || ty >= H - 1) return false;
+//                if (board[ty][tx] != ' ') return false;
+//            }
+//    return true;
+//}
 
 void increaseSpeed(int percent) {
     if (speed > 100) speed = speed * (100 - percent) / 100;
@@ -917,7 +911,7 @@ void hardDrop(){
 
     copyTemplateToCurrent(b);
     if (!canMove(0, 0)) {
-        isGameOver = true; 
+        isGameOver = true;
     }
   currentSpeed = 0;
 }
@@ -956,7 +950,7 @@ void addScore2GlobalLdb(string name, int score){
         string json = execCurl("curl -s -d " + data + apiURL);
     } catch (...){
         cout<<"Error! Can't push score to global leaderboard!\n";
-   
+    }
 }
 
 string get10GlobalLdb(int page){
@@ -1062,12 +1056,6 @@ void handleSubmitGlobalScoreInput(){
         showGameOverScreen();
     }
 }
-
-//void debug(vector<vector<string>> datas){
-//    for (int i = 0; i < datas.size(); i++){
-//        cout<<datas[i][0]<<" "<<datas[i][1]<<" "<<datas[i][2]<<"\n";
-//    }
-//}
 
 void debug(){
     cout<<x<<" "<<y<<"\n";
