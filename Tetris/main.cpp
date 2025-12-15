@@ -37,11 +37,11 @@ int getBlockColor(char type) {
 
 
 
-#define COLOR_RESET     "\033[0m"
-#define COLOR_BLUE_BG   "\033[44m"
-#define COLOR_YELLOW    "\033[93m"
-#define COLOR_CYAN      "\033[96m"
-#define COLOR_WHITES     "\033[97m"
+#define COLOR_RESET_M     "\033[0m"
+#define COLOR_BLUE_BG_M   "\033[44m"
+#define COLOR_YELLOW_M    "\033[93m"
+#define COLOR_CYAN_M      "\033[96m"
+#define COLOR_WHITE_M     "\033[97m"
 // --- Khai báo biến toàn cục ---
 char board[H][W] = {};
 char blocks[][4][4] = {
@@ -57,7 +57,7 @@ char blocks[][4][4] = {
 const int tick = 50; // 20 fps
 string name = "";
 string localDir = "scoreboards.txt";
-string apiURL = "https://script.google.com/macros/s/AKfycbyBSofw1Jugm68awOHDcthLfNzTuGC_2rxkbTafpgLc3w1NIfnHKwvJmOfIC_0FEuoX/exec";
+string apiURL = "https://script.google.com/macros/s/AKfycbzrrxtmpe1Zwt5As_nnBE46XlxWE0NlE2EAkmW3YD6lHmEwVzLWgoqfLcyi-gfNBnya/exec";
 int speed = 1000;
 int currentSpeed = 0;
 int level = 1;
@@ -67,14 +67,16 @@ bool menuTriggered = false;
 int x = 4, y = 0, b = 1;
 bool isGameOver = false;
 int resumeMenuIndex = 0;
-enum Screen { MAINMENU, GAMEPLAY, MENU, PAUSE, SAVE, SUBMIT, SUBMITTING };
+int settingIndex = 0;
+enum Screen { MAINMENU, GAMEPLAY, MENU, SETTINGS, PAUSE, SAVE, SUBMIT, SUBMITTING };
 
 Screen screenState = MAINMENU;
 const char* mainMenuItems[] = {"START GAME", "SETTINGS", "EXIT"};
 const int mainMenuCount = 3;
 const char* resumeMenuItems[] = {"Resume game", "Fall speed", "Volume", "Sound enabled", "Back to Main Menu"};
+const char* settingItems[] = { "Fall speed", "Volume", "Sound enabled","Back to Main Menu"};
 const int resumeMenuCount = sizeof(resumeMenuItems) / sizeof(resumeMenuItems[0]);
-const int settingMenuCount = 5;
+const int settingMenuCount = sizeof(settingItems) / sizeof(settingItems[0]);
 int mainMenuIndex = 0;
 bool isInGame = false; // False = Ở Main Menu, True = Đang trong ván chơi
 
@@ -156,7 +158,7 @@ void effectParticles(int px, int py) {
         int dY = py + offsets[i][1];
         if(dX > 0 && dX < W-1 && dY > 0 && dY < H-1) {
             gotoxy(dX * 2, dY);
-            cout << particles[rand() % 4];
+            cout << particles[randomInRange(0,4)];
         }
     }
     Sleep(60);
@@ -198,23 +200,65 @@ void effectFloatingText(int row, string text) {
 // Hiệu ứng xóa hàng
 void effectLineClear(int row) {
     for (int k = 0; k < 3; k++) {
-        gotoxy(0, row);
+        gotoxy(2, row);
         setColor(BACKGROUND_RED | BACKGROUND_INTENSITY | FOREGROUND_WHITE);
-        cout << "================";
+        for (int i = 1; i < W-1; i++) cout << "==";
         Sleep(40);
-        gotoxy(0, row);
+        gotoxy(2, row);
         setColor(COLOR_WHITE);
-        cout << "                ";
+        for (int i = 1; i < W-1; i++) cout << "  ";
         Sleep(40);
     }
     setColor(COLOR_WHITE);
 }
 
 // --- 6. HÀM VẼ (DRAW) ---
-// Bây giờ draw() đã nhìn thấy boardDelBlock() ở trên -> Hết lỗi
-void draw() {
-    boardDelBlock(); // Dọn đường cho bóng ma
+void drawUI(){
+    int uiX = W * 2 + 4;
 
+    gotoxy(uiX, 4); cout << "Level: " << level;
+    gotoxy(uiX, 5); cout << "Score: " << score;
+
+
+    gotoxy(uiX, 8); cout << "--- NEXT ---";
+
+    for(int i=0; i<4; i++) {
+        gotoxy(uiX + 2, 10 + i); cout << "        ";
+    }
+
+    for (int i = 0; i < 4; i++) {
+        gotoxy(uiX + 2, 10 + i);
+        for (int j = 0; j < 4; j++) {
+            if (blocks[next_b][i][j] != ' ') {
+                cout << (unsigned char)219 << (unsigned char)219;
+            } else {
+                cout << "  ";
+            }
+        }
+    }
+
+    gotoxy(uiX, 15); cout << "--- KEYS ---";
+    gotoxy(uiX, 16); cout << " Left, Right Arrow : Move";
+    gotoxy(uiX, 17); cout << " Z, C              : Rotate";
+    gotoxy(uiX, 18); cout << " Down Arrow        : Soft drop";
+    gotoxy(uiX, 19); cout << " SPACE             : Hard drop";
+    gotoxy(uiX, 20); cout << " M                 : Menu";
+}
+void drawBlock(){
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j++) {
+            if (currentBlock[i][j] != ' ') {
+                if (y + i < H - 1) {
+                    gotoxy((x + j) * 2, y + i);
+                    setColor(COLOR_BRIGHT_WHITE);
+                    cout << (unsigned char)219 << (unsigned char)219;
+                    setColor(COLOR_WHITE);
+                }
+            }
+        }
+    }
+}
+void drawBoardNGhost(){
     // Logic Cảnh báo
     bool isDanger = false;
     for (int j = 1; j < W - 1; j++) {
@@ -223,7 +267,6 @@ void draw() {
             break;
         }
     }
-
     // Logic Bóng ma (Ghost)
     int ghostY = y;
     while (true) {
@@ -278,20 +321,14 @@ void draw() {
             }
         }
     }
+}
+void draw() {
+    boardDelBlock(); // Dọn đường cho bóng ma
+    drawBoardNGhost();
 
     // Vẽ gạch đang rơi (Active Block) đè lên tất cả
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
-            if (currentBlock[i][j] != ' ') {
-                if (y + i < H - 1) {
-                    gotoxy((x + j) * 2, y + i);
-                    setColor(COLOR_BRIGHT_WHITE);
-                    cout << (unsigned char)219 << (unsigned char)219;
-                    setColor(COLOR_WHITE);
-                }
-            }
-        }
-    }
+    drawBlock();
+    drawUI();
 }
 // Hàm lấy kích thước Console thực tế
 void getConsoleSize(int &width, int &height) {
@@ -318,7 +355,7 @@ void drawMainMenu() {
     string title = "TETRIS GAME";
     const char* items[] = {"START GAME", "SETTINGS", "EXIT"};
     int nItems = sizeof(items) / sizeof(items[0]);
-    string hint = "W/S = Move    ENTER = Select";
+    string hint = "Up Arrow/Down Arrow = Move; SPACE/Left Arrow/Right Arrow = Select";
 
     // --- Tính toán Chiều Cao Khung Viền Menu (menuHeight) ---
     // Tiêu đề (1) + Dòng trống (1) + Items (nItems) + Spacing (nItems-1) + Dòng trống (1)
@@ -358,7 +395,7 @@ void drawMainMenu() {
     // --- Vẽ Tiêu đề (Căn giữa ngang trong khung) ---
     int titleX = startX + (menuWidth - title.size()) / 2;
     gotoxy(titleX, startY + 1);
-    cout << COLOR_YELLOW << title << COLOR_RESET;
+    cout << COLOR_YELLOW_M << title << COLOR_RESET_M;
 
     // --- Vẽ Menu Items (Căn giữa ngang trong khung) ---
     int longestItemLength = 0;
@@ -376,9 +413,9 @@ void drawMainMenu() {
         gotoxy(itemStartX, currentY);
 
         if (i == mainMenuIndex) {
-            cout << COLOR_CYAN << " > " << items[i] << COLOR_RESET;
+            cout << COLOR_CYAN_M << " > " << items[i] << COLOR_RESET_M;
         } else {
-            cout << COLOR_WHITE << "   " << items[i] << COLOR_RESET;
+            cout << COLOR_WHITE_M << "   " << items[i] << COLOR_RESET_M;
         }
 
         currentY += (1 + menuInternalSpacing); // Tăng Y lên 1 dòng item + khoảng cách
@@ -387,7 +424,7 @@ void drawMainMenu() {
     // --- Vẽ Hướng dẫn Phím (Căn giữa ngang bên dưới khung) ---
     int hintX = (consoleWidth - hint.size()) / 2;
     gotoxy(hintX, startY + menuHeight + 1);
-    cout << COLOR_BLUE_BG << COLOR_WHITE << hint << COLOR_RESET;
+    cout << COLOR_BLUE_BG_M << COLOR_WHITE_M << hint << COLOR_RESET_M;
 }
 
 // Hàm chạy nhạc nền
@@ -447,7 +484,7 @@ void setMusicVolume(int percent) {
 //    gotoxy(uiX, 20); cout << " M          : Menu";
 //}
 
-// --- 7. CÁC HÀM XỬ LÝ KHÁC ---
+
 
 void drawResumeMenu() {
     system("cls");
@@ -456,37 +493,6 @@ void drawResumeMenu() {
     cout << "===== PAUSE MENU =====\n\n";
     for (int i = 0; i < resumeMenuCount; ++i) {
         if (i == resumeMenuIndex) cout << " > "; else cout << "   ";
-        switch (i){
-            case SETTING_RESUME:{
-                cout << "Resume game\n";
-                break;
-            }
-            case SETTING_VOLUMN:{
-                cout << "Volume: " << settings.volumePercent << "%\n";
-                break;
-            }
-            case SETTING_SPEED:{
-                cout << "Fall speed: " << settings.fallSpeedPercent << "%\n";
-                break;
-            }
-            case SETTING_SOUND:{
-                cout << "Sound enabled: " << (settings.soundEnabled ? "ON" : "OFF") << "\n";
-                break;
-            }
-        }
-    }
-    cout << "\nUp/Down Arrow: Browse | Left/Right Arrow: Decrease/Increase/Select | ESC: Resume" ;
-}
-
-void drawSettingMenu() {
-    system("cls");
-    for(int i = 0; i < 12; i++) { clearLine(i); }
-    gotoxy(0,0);
-    cout << "===== SETTINGS =====\n\n";
-    for (int i = 0; i < settingMenuCount; ++i) {
-        if (i == resumeMenuIndex) cout << " > ";
-        else cout << "   ";
-
         switch (i){
             case SETTING_RESUME:{
                 cout << "Resume game\n";
@@ -513,6 +519,37 @@ void drawSettingMenu() {
     cout << "\nUp/Down Arrow: Browse | Left/Right Arrow: Decrease/Increase/Select | ESC: Resume" ;
 }
 
+void drawSettingMenu() {
+    system("cls");
+    for(int i = 0; i < 12; i++) { clearLine(i); }
+    gotoxy(0,0);
+    cout << "===== SETTINGS =====\n\n";
+    for (int i = 1; i < settingMenuCount+1; ++i) {
+        if (i == settingIndex) cout << " > ";
+        else cout << "   ";
+
+        switch (i){
+            case SETTING_BACK_TO_MAIN:{
+                cout << "Back to main menu\n";
+                break;
+            }
+            case SETTING_VOLUMN:{
+                cout << "Volume: " << settings.volumePercent << "%\n";
+                break;
+            }
+            case SETTING_SPEED:{
+                cout << "Fall speed: " << settings.fallSpeedPercent << "%\n";
+                break;
+            }
+            case SETTING_SOUND:{
+                cout << "Sound enabled: " << (settings.soundEnabled ? "ON" : "OFF") << "\n";
+                break;
+            }
+        }
+    }
+    cout << "\nUp/Down Arrow: Browse | Left/Right Arrow: Decrease/Increase/Select | ESC: Resume" ;
+}
+// --- 7. CÁC HÀM XỬ LÝ KHÁC ---
 
 void applyFallSpeed() {
     int base = 1000;
@@ -522,26 +559,15 @@ void applyFallSpeed() {
 }
 
 void handleResumeMenuInput() {
-    bool action = false;
-    int visibleItems = isInGame ? 5 : 4;
     // Di chuyển chọn bằng mũi tên lên/xuống
+    bool action = false;
     if (GetAsyncKeyState(VK_UP) & 0x8000) {
-        if (resumeMenuIndex == 0) resumeMenuIndex = resumeMenuCount;
-        if (resumeMenuIndex > 0) resumeMenuIndex--;
+        resumeMenuIndex = (resumeMenuIndex+resumeMenuCount-1)%resumeMenuCount;
         Sleep(200); action = true;
-        if (resumeMenuIndex == 0) resumeMenuIndex = visibleItems - 1;
-        else resumeMenuIndex--;
-        Sleep(200);
-        action = true;
     }
     if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
-        if (resumeMenuIndex == resumeMenuCount - 1) resumeMenuIndex = -1;
-        if (resumeMenuIndex < resumeMenuCount - 1) resumeMenuIndex++;
+        resumeMenuIndex = (resumeMenuIndex+1)%resumeMenuCount;
         Sleep(200); action = true;
-        if (resumeMenuIndex == visibleItems - 1) resumeMenuIndex = 0;
-        else resumeMenuIndex++;
-        Sleep(200);
-        action = true;
     }
     if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
         switch (resumeMenuIndex){
@@ -561,11 +587,7 @@ void handleResumeMenuInput() {
                 break;
             }
             case SETTING_RESUME:{
-                if (isInGame) {
-                    screenState = GAMEPLAY; // Nếu đang chơi thì tiếp tục
-                } else {
-                    screenState = MAINMENU; // Nếu từ màn hình chính thì quay lại
-                }
+                screenState = GAMEPLAY; // Nếu đang chơi thì tiếp tục
                 system("cls");
                 break;
             }
@@ -616,19 +638,87 @@ void handleResumeMenuInput() {
         Sleep(120); action = true;
     }
     if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
-        if (isInGame) {
-            screenState = GAMEPLAY; // Nếu đang chơi thì tiếp tục
-        } else {
-            screenState = MAINMENU; // Nếu từ màn hình chính thì quay lại
+        screenState = GAMEPLAY; // Nếu đang chơi thì tiếp tục
+        system("cls");
+        Sleep(120);
+    }
+    if (action) drawResumeMenu();
+}
+void handleSettingInput() {
+    // Di chuyển chọn bằng mũi tên lên/xuống
+    bool action = false;
+    if (GetAsyncKeyState(VK_UP) & 0x8000) {
+        settingIndex = (settingIndex+settingMenuCount-2)%settingMenuCount+1;
+        Sleep(200); action = true;
+    }
+    if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
+        settingIndex = (settingIndex)%settingMenuCount+1;
+        Sleep(200); action = true;
+    }
+    if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
+        switch (settingIndex){
+            case SETTING_SOUND:{
+                settings.soundEnabled = !settings.soundEnabled;
+                updateBackgroundMusic();
+                break;
+            }
+            case SETTING_SPEED:{
+                settings.fallSpeedPercent = max(50, settings.fallSpeedPercent - 5);
+                applyFallSpeed();
+                break;
+            }
+            case SETTING_VOLUMN:{
+                settings.volumePercent = max(0, settings.volumePercent - 5);
+                setMusicVolume(settings.volumePercent); // cập nhật volume
+                break;
+            }
+            case SETTING_BACK_TO_MAIN:{
+                isGameOver = true; // Đặt cờ thua để thoát vòng lặp game
+                isInGame = false; // Đánh dấu đã thoát game
+                screenState = MAINMENU; // Chuyển trạng thái về Menu chính
+                system("cls");
+                break;
+            }
         }
+        Sleep(120); action = true;
+    }
+    if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
+        switch (settingIndex){
+            case SETTING_SOUND:{
+                settings.soundEnabled = !settings.soundEnabled;
+                updateBackgroundMusic();
+                break;
+            }
+            case SETTING_SPEED:{
+                settings.fallSpeedPercent = min(200, settings.fallSpeedPercent + 5);
+                applyFallSpeed();
+                break;
+            }
+            case SETTING_VOLUMN:{
+                settings.volumePercent = min(100, settings.volumePercent + 5);
+                setMusicVolume(settings.volumePercent); // cập nhật volume
+                break;
+            }
+            case SETTING_BACK_TO_MAIN:{
+                isGameOver = true;
+                isInGame = false;
+                screenState = MAINMENU;
+                system("cls");
+                break;
+            }
+        }
+        Sleep(120); action = true;
+    }
+    if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
+        screenState = MAINMENU;
         system("cls");
         Sleep(120);
     }
 
-    if (action && screenState == MENU){
-        drawResumeMenu();
+    if (action){
+        drawSettingMenu();
     }
-    if (action) drawResumeMenu();
+
 }
 
 void hideCursor() {
@@ -661,13 +751,13 @@ void resetGame() {
     system("cls"); // Xóa màn hình console
 }
 
-void gameMenuLoop() {
-    resumeMenuIndex = 0;
-    drawResumeMenu(); // Vẽ menu pause lần đầu
+void gameSettingLoop() {
+    settingIndex = 1;
+    drawSettingMenu(); // Vẽ menu pause lần đầu
 
-    while (screenState == MENU) {
+    while (screenState == SETTINGS) {
         // Xử lý input cho menu
-        handleResumeMenuInput();
+        handleSettingInput();
 
         // Sleep nhỏ để tránh chiếm CPU
         Sleep(50);
@@ -679,46 +769,53 @@ void gameMenuLoop() {
 
 // Hàm xử lý input màn hình chính
 void handleMainMenu() {
-    static bool w_held = false;
-    static bool s_held = false;
-    static bool enter_held = false;
+    static bool up_held = false;
+    static bool down_held = false;
+    static bool space_held = false;
+    static bool left_held = false;
+    static bool right_held = false;
 
-    bool w_now = GetAsyncKeyState('W') & 0x8000;
-    bool s_now = GetAsyncKeyState('S') & 0x8000;
-    bool enter_now = GetAsyncKeyState(VK_RETURN) & 0x8000;
+
+    bool up_now = GetAsyncKeyState(VK_UP) & 0x8000;
+    bool down_now = GetAsyncKeyState(VK_DOWN) & 0x8000;
+    bool space_now = GetAsyncKeyState(VK_SPACE) & 0x8000;
+    bool left_now = GetAsyncKeyState(VK_LEFT) & 0x8000;
+    bool right_now = GetAsyncKeyState(VK_RIGHT) & 0x8000;
 
     // Di chuyển menu lên
-    if (w_now && !w_held) {
+    if (up_now && !up_held) {
         mainMenuIndex = (mainMenuIndex + mainMenuCount - 1) % mainMenuCount;
         drawMainMenu();
     }
-    w_held = w_now;
+    up_held = up_now;
 
     // Di chuyển menu xuống
-    if (s_now && !s_held) {
+    if (down_now && !down_held) {
         mainMenuIndex = (mainMenuIndex + 1) % mainMenuCount;
         drawMainMenu();
     }
-    s_held = s_now;
+    down_held = down_now;
 
     // Chọn menu
-    if (enter_now && !enter_held) {
+    if (space_now && !space_held || left_now && !left_held || right_now && !right_held) {
         switch(mainMenuIndex) {
             case 0: // START GAME
                 resetGame();
                 screenState = GAMEPLAY;
                 break;
             case 1: // SETTINGS / MENU
-                screenState = MENU;
+                screenState = SETTINGS;
                 system("cls");
-                gameMenuLoop();
+                gameSettingLoop();
                 drawMainMenu();
                 break;
             case 2: // EXIT
                 exit(0);
         }
     }
-    enter_held = enter_now;
+    space_held = space_now;
+    right_held = right_now;
+    left_held = left_now;
 }
 
 void mainMenuLoop() {
@@ -771,170 +868,6 @@ void mainMenuLoop() {
 //    gotoxy(uiX, 19); cout << " SPACE             : Hard drop";
 //    gotoxy(uiX, 20); cout << " M                 : Menu";
 //}
-
-void showGameOverScreen() {
-    setColor(COLOR_RED);
-    gotoxy(W - 4, H / 2 - 2); cout << "=============";
-    gotoxy(W - 4, H / 2 - 1); cout << "  GAME OVER  ";
-    gotoxy(W - 4, H / 2);     cout << "=============";
-    gotoxy(W - 4, H / 2 + 1); cout << "                           ";
-    gotoxy(W - 4, H / 2 + 2); cout << "Score: " << score;
-    gotoxy(W - 4, H / 2 + 3); cout << "                           ";
-    gotoxy(W - 4, H / 2 + 4); cout << "Press 'SPACE' to Replay    ";
-    gotoxy(W - 4, H / 2 + 5); cout << "Press 'Z' to Save score    ";
-    gotoxy(W - 4, H / 2 + 6); cout << "Press 'C' to Submit score  ";
-    gotoxy(W - 4, H / 2 + 7); cout << "Press 'ESC' to Quit        ";
-}
-
-void showInputSaveLocalScore() {
-    gotoxy(W - 4, H / 2 + 3); cout << "Input your name:       ";
-    gotoxy(W - 4, H / 2 + 4); cout << "                           ";
-    gotoxy(W - 4, H / 2 + 5); cout << "Press 'ENTER' to Save      ";
-    gotoxy(W - 4, H / 2 + 6); cout << "                           ";
-    gotoxy(W - 4, H / 2 + 7); cout << "                           ";
-    gotoxy(W - 4, H / 2 + 4);
-    FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));
-    cin >> name;
-}
-
-void showInputSubmitGlobalScore() {
-    gotoxy(W - 4, H / 2 + 3); cout << "Input your name:       ";
-    gotoxy(W - 4, H / 2 + 4); cout << "                           ";
-    gotoxy(W - 4, H / 2 + 5); cout << "Press 'ENTER' to Submit    ";
-    gotoxy(W - 4, H / 2 + 6); cout << "                           ";
-    gotoxy(W - 4, H / 2 + 7); cout << "                           ";
-    gotoxy(W - 4, H / 2 + 4);
-    FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));
-    cin >> name;
-    setColor(COLOR_WHITE);
-    gotoxy(W - 4, H / 2 + 2); cout << "Score: " << score;
-    gotoxy(W - 4, H / 2 + 4); cout << "Press 'R' to Replay";
-    gotoxy(W - 4, H / 2 + 5); cout << "Press 'M' to Main Menu";
-    gotoxy(W - 4, H / 2 + 6); cout << "Press 'ESC' to Quit";
-}
-
-
-void increaseSpeed(int percent) {
-    if (speed > 100) speed = speed * (100 - percent) / 100;
-}
-
-void removeLine() {
-    int linesCleared = 0;
-    for (int i = H - 2; i > 0; i--) {
-        bool isFull = true;
-        for (int j = 1; j < W - 1; j++) {
-            if (board[i][j] == ' ') {
-                isFull = false;
-                break;
-            }
-        }
-        if (isFull) {
-            effectLineClear(i);
-            effectFloatingText(i, "NICE!");
-            effectShake();
-            for (int k = i; k > 0; k--)
-                for (int j = 1; j < W - 1; j++)
-                    board[k][j] = board[k - 1][j];
-            for (int j = 1; j < W - 1; j++) board[0][j] = ' ';
-            i++;
-            linesCleared++;
-        }
-    }
-    if (linesCleared > 0) {
-        score += linesCleared * 100 * level;
-        if (score >= level * 500) {
-            level++;
-            if (speed > 100) speed -= 100;
-        }
-    }
-}
-
-bool canRotate(char temp[4][4], int& offset) {
-    bool isCollide = true;
-    while (isCollide && (offset < 5 && offset > -5)){
-        isCollide = false;
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 4; j++) {
-                if (temp[i][j] != ' ') {
-                    int tx = x + j + offset;
-                    int ty = y + i;
-                    if (tx < 1){ isCollide = true; offset++; break; }
-                    if (tx > W - 2){ isCollide = true; offset--; break; }
-                    if (ty >= H - 1){ return false; }
-                    if (board[ty][tx] != ' '){ return false; }
-                }
-            }
-            if (isCollide) break;
-        }
-    }
-    return true;
-}
-
-void rotateBlockClock() {
-    char temp[4][4];
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 4; j++)
-            temp[j][3 - i] = currentBlock[i][j];
-    int offset = 0;
-    if (canRotate(temp, offset)) {
-        for (int i = 0; i < 4; i++)
-            for (int j = 0; j < 4; j++)
-                currentBlock[i][j] = temp[i][j];
-        x += offset;
-    }
-}
-
-void rotateBlockCterClock() {
-    char temp[4][4];
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 4; j++)
-            temp[3-j][i] = currentBlock[i][j];
-    int offset = 0;
-    if (canRotate(temp, offset)) {
-        for (int i = 0; i < 4; i++)
-            for (int j = 0; j < 4; j++)
-                currentBlock[i][j] = temp[i][j];
-        x += offset;
-    }
-}
-
-bool canFall() {
-    currentSpeed += tick;
-    if (currentSpeed >= speed) { currentSpeed = 0; return true; }
-    return false;
-}
-
-void hardDrop(){
-    while (canMove(0,1)) {
-        y++;
-        block2Board();
-        boardDelBlock();
-    }
-    effectParticles(x + 1, y + 3);
-    effectParticles(x + 2, y + 3);
-    block2Board();
-    removeLine();
-    x = 5; y = 0; b = next_b; next_b = randomInRange(0, 7);
-
-    copyTemplateToCurrent(b);
-    if (!canMove(0, 0)) {
-        isGameOver = true;
-    }
-  currentSpeed = 0;
-}
-
-void handleGameInput(){
-    if ((GetAsyncKeyState(VK_LEFT) & 0x8000) && canMove(-1, 0)) x--;
-    if ((GetAsyncKeyState(VK_RIGHT) & 0x8000) && canMove(1, 0)) x++;
-    if ((GetAsyncKeyState(VK_DOWN) & 0x8000) && canMove(0, 1)) y++;
-
-    if (GetAsyncKeyState('C') & 0x8000){ rotateBlockClock(); Sleep(100); }
-    if (GetAsyncKeyState('Z') & 0x8000) { rotateBlockCterClock(); Sleep(100); }
-    if (GetAsyncKeyState(VK_SPACE) & 0x8000) { hardDrop(); Sleep(200); }
-    if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) { isGameOver = true; }
-
-}
-
 string execCurl(string cmd) {
     string result;
     char buffer[256];
@@ -1057,23 +990,173 @@ vector<vector<string>> processJSON(string json){
     return datas;
 }
 
-void handleSaveLocalScoreInput(){
-    if (GetAsyncKeyState(VK_RETURN) & 0x8000){
-        name = "\"" + name + "\"";
-        addScore2LocalLdb(name, score);
-        screenState = GAMEPLAY;
-        showGameOverScreen();
+void showGameOverScreen() {
+    setColor(COLOR_RED);
+    gotoxy(W - 4, H / 2 - 2); cout << "=============";
+    gotoxy(W - 4, H / 2 - 1); cout << "  GAME OVER  ";
+    gotoxy(W - 4, H / 2);     cout << "=============";
+    gotoxy(W - 4, H / 2 + 1); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 2); cout << "Score: " << score;
+    gotoxy(W - 4, H / 2 + 3); cout << "                           ";
+    setColor(COLOR_WHITE);
+    gotoxy(W - 4, H / 2 + 4); cout << "Press 'SPACE' to Replay    ";
+    gotoxy(W - 4, H / 2 + 5); cout << "Press 'Z' to Save score    ";
+    gotoxy(W - 4, H / 2 + 6); cout << "Press 'C' to Submit score  ";
+    gotoxy(W - 4, H / 2 + 7); cout << "Press 'ESC' to Quit        ";
+}
+
+void showInputSaveLocalScore() {
+    gotoxy(W - 4, H / 2 + 3); cout << "Input your name:       ";
+    gotoxy(W - 4, H / 2 + 4); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 5); cout << "Press 'ENTER' to Save      ";
+    gotoxy(W - 4, H / 2 + 6); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 7); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 4);
+    FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));
+    cin >> name;
+    addScore2LocalLdb(name, score);
+    screenState = GAMEPLAY;
+    showGameOverScreen();
+}
+
+void showInputSubmitGlobalScore() {
+    gotoxy(W - 4, H / 2 + 3); cout << "Input your name:       ";
+    gotoxy(W - 4, H / 2 + 4); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 5); cout << "Press 'ENTER' to Submit    ";
+    gotoxy(W - 4, H / 2 + 6); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 7); cout << "                           ";
+    gotoxy(W - 4, H / 2 + 4);
+    FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));
+    cin >> name;
+    name = "\""+name+"\"";
+    gotoxy(W - 4, H / 2 + 6); cout << "Submitting your score, please wait...";
+    screenState = SUBMITTING;
+    addScore2GlobalLdb(name, score);
+    screenState = GAMEPLAY;
+    showGameOverScreen();
+}
+
+
+void increaseSpeed(int percent) {
+    if (speed > 100) speed = speed * (100 - percent) / 100;
+}
+
+void removeLine() {
+    int linesCleared = 0;
+    string floatingText[4] = {"NICE!", "AMAZING!!", "EXCELLENT!!!", "TETRIS!!!!"};
+    for (int i = H - 2; i > 0; i--) {
+        bool isFull = true;
+        for (int j = 1; j < W - 1; j++) {
+            if (board[i][j] == ' ') {
+                isFull = false;
+                break;
+            }
+        }
+        if (isFull) {
+            effectLineClear(i-linesCleared);
+            effectFloatingText(i-linesCleared, floatingText[linesCleared]);
+            effectShake();
+            for (int k = i; k > 0; k--)
+                for (int j = 1; j < W - 1; j++)
+                    board[k][j] = board[k - 1][j];
+            for (int j = 1; j < W - 1; j++) board[0][j] = ' ';
+            i++;
+            linesCleared++;
+        }
+    }
+    if (linesCleared > 0) {
+        score += linesCleared * 100 * level;
+        if (score >= level * 500) {
+            level++;
+            if (speed > 100) increaseSpeed(10);
+        }
     }
 }
 
-void handleSubmitGlobalScoreInput(){
-    if (GetAsyncKeyState(VK_RETURN) & 0x8000){
-        gotoxy(W - 4, H / 2 + 6); cout << "Submitting your score, please wait...";
-        screenState = SUBMITTING;
-        addScore2GlobalLdb(name, score);
-        screenState = GAMEPLAY;
-        showGameOverScreen();
+bool canRotate(char temp[4][4], int& offset) {
+    bool isCollide = true;
+    while (isCollide && (offset < 5 && offset > -5)){
+        isCollide = false;
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                if (temp[i][j] != ' ') {
+                    int tx = x + j + offset;
+                    int ty = y + i;
+                    if (tx < 1){ isCollide = true; offset++; break; }
+                    if (tx > W - 2){ isCollide = true; offset--; break; }
+                    if (ty >= H - 1){ return false; }
+                    if (board[ty][tx] != ' '){ return false; }
+                }
+            }
+            if (isCollide) break;
+        }
     }
+    return true;
+}
+
+void rotateBlockClock() {
+    char temp[4][4];
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 4; j++)
+            temp[j][3 - i] = currentBlock[i][j];
+    int offset = 0;
+    if (canRotate(temp, offset)) {
+        for (int i = 0; i < 4; i++)
+            for (int j = 0; j < 4; j++)
+                currentBlock[i][j] = temp[i][j];
+        x += offset;
+    }
+}
+
+void rotateBlockCterClock() {
+    char temp[4][4];
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 4; j++)
+            temp[3-j][i] = currentBlock[i][j];
+    int offset = 0;
+    if (canRotate(temp, offset)) {
+        for (int i = 0; i < 4; i++)
+            for (int j = 0; j < 4; j++)
+                currentBlock[i][j] = temp[i][j];
+        x += offset;
+    }
+}
+
+bool canFall() {
+    currentSpeed += tick;
+    if (currentSpeed >= speed) { currentSpeed = 0; return true; }
+    return false;
+}
+
+void hardDrop(){
+    while (canMove(0,1)) {
+        y++;
+        block2Board();
+        boardDelBlock();
+    }
+    effectParticles(x + 1, y + 3);
+    effectParticles(x + 2, y + 3);
+    block2Board();
+    removeLine();
+    x = 5; y = 0; b = next_b; next_b = randomInRange(0, 7);
+
+    copyTemplateToCurrent(b);
+    if (!canMove(0, 0)) {
+        isGameOver = true;
+    }
+  currentSpeed = 0;
+}
+
+void handleGameInput(){
+    if ((GetAsyncKeyState(VK_LEFT) & 0x8000) && canMove(-1, 0)) x--;
+    if ((GetAsyncKeyState(VK_RIGHT) & 0x8000) && canMove(1, 0)) x++;
+    if ((GetAsyncKeyState(VK_DOWN) & 0x8000) && canMove(0, 1)) y++;
+
+    if (GetAsyncKeyState('C') & 0x8000){ rotateBlockClock(); Sleep(100); }
+    if (GetAsyncKeyState('Z') & 0x8000) { rotateBlockCterClock(); Sleep(100); }
+    if (GetAsyncKeyState(VK_SPACE) & 0x8000) { hardDrop(); Sleep(200); }
+    if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) { isGameOver = true; }
+
 }
 
 void generateNextBlock(){
@@ -1105,7 +1188,6 @@ int main()
     // Vòng lặp chính của ứng dụng (Game App Loop)
     while (true) {
         // ===== MAIN MENU =====
-
         if (screenState == MAINMENU){
             mainMenuLoop();
             continue;
@@ -1177,17 +1259,6 @@ int main()
 
             if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
                 return 0;
-            }
-            switch (screenState){
-                case SAVE:{
-                    handleSaveLocalScoreInput();
-                    break;
-                }
-                case SUBMIT:{
-                    handleSubmitGlobalScoreInput();
-                    break;
-                }
-
             }
 
             Sleep(100);
