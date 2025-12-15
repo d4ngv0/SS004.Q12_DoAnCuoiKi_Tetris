@@ -22,6 +22,9 @@ using namespace std;
 #define SETTING_SOUND 3
 #define SETTING_BACK_TO_MAIN 4
 
+#define GAMEMODE_CLASSIC 0
+#define GAMEMODE_INVISIBLE 1
+
 // Định nghĩa màu sắc cơ bản và nâng cao
 #define FOREGROUND_WHITE (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE)
 #define COLOR_WHITE 7
@@ -66,11 +69,14 @@ int next_b=0;
 bool menuTriggered = false;
 int x = 4, y = 0, b = 1;
 bool isGameOver = false;
+
 enum Mode { CLASSIC, INVISIBLE };
+int gameModeIndex = 0;
+const int gameModeCount = 2;
 Mode gameMode = CLASSIC;
 int resumeMenuIndex = 0;
 int settingIndex = 0;
-enum Screen { MAINMENU, GAMEPLAY, MENU, SETTINGS, PAUSE, SAVE, SUBMIT, SUBMITTING };
+enum Screen { MAINMENU, GAMEPLAY, PREPARE, GAMEMODE, MENU, SETTINGS, PAUSE, SAVE, SUBMIT, SUBMITTING };
 Screen screenState = MAINMENU;
 const char* mainMenuItems[] = {"START GAME", "SETTINGS", "EXIT"};
 const int mainMenuCount = 3;
@@ -262,12 +268,15 @@ void drawBlock(){
 void drawBoardNGhost(){
     // Logic Cảnh báo
     bool isDanger = false;
-    for (int j = 1; j < W - 1; j++) {
-        if (board[4][j] != ' ') {
-            isDanger = true;
-            break;
+    if (gameMode != INVISIBLE){
+        for (int j = 1; j < W - 1; j++) {
+            if (board[4][j] != ' ') {
+                isDanger = true;
+                break;
+            }
         }
     }
+
     // Logic Bóng ma (Ghost)
     int ghostY = y;
     while (true) {
@@ -286,6 +295,7 @@ void drawBoardNGhost(){
         if (collide) break;
         ghostY++;
     }
+
 
     gotoxy(0, 0);
     // Vẽ Board
@@ -306,7 +316,7 @@ void drawBoardNGhost(){
                         isGhostPart = true;
                     }
                 }
-                if (isGhostPart) {
+                if (gameMode != INVISIBLE && isGhostPart) {
                     setColor(COLOR_GRAY); // Vẽ bóng ma màu xám
                     cout << "::";
                     setColor(COLOR_WHITE);
@@ -316,9 +326,14 @@ void drawBoardNGhost(){
             }
             // Gạch đã xếp (Màu trắng sáng)
             else {
-                setColor(COLOR_BRIGHT_WHITE);
-                cout << (unsigned char)219 << (unsigned char)219;
-                setColor(COLOR_WHITE);
+                if (gameMode != INVISIBLE){
+                    setColor(COLOR_BRIGHT_WHITE);
+                    cout << (unsigned char)219 << (unsigned char)219;
+                    setColor(COLOR_WHITE);
+                } else {
+                    cout <<"  ";
+                }
+
             }
         }
     }
@@ -427,6 +442,96 @@ void drawMainMenu() {
     gotoxy(hintX, startY + menuHeight + 1);
     cout << COLOR_BLUE_BG_M << COLOR_WHITE_M << hint << COLOR_RESET_M;
 }
+
+// Hàm vẽ màn hình chính
+void drawGameModeMenu() {
+    system("cls");
+
+    // Lấy kích thước console thực tế
+    int consoleWidth = 80;
+    int consoleHeight = 25;
+    getConsoleSize(consoleWidth, consoleHeight);
+
+    // Kích thước menu mới: Rộng hơn để tạo padding, Cao hơn để tạo spacing
+    const int menuWidth = 40;
+    const int menuInternalSpacing = 1; // Khoảng cách dòng giữa các item menu
+
+    // Tiêu đề và nội dung
+    string title = "TETRIS GAME";
+    const char* items[] = {"CLASSIC", "INVISIBLE"};
+    int nItems = sizeof(items) / sizeof(items[0]);
+    string hint = "Up Arrow/Down Arrow = Move; SPACE/Left Arrow/Right Arrow = Select";
+
+    // --- Tính toán Chiều Cao Khung Viền Menu (menuHeight) ---
+    // Tiêu đề (1) + Dòng trống (1) + Items (nItems) + Spacing (nItems-1) + Dòng trống (1)
+    const int menuContentHeight = 1 + 1 + nItems + (nItems - 1) * menuInternalSpacing + 1;
+    const int menuHeight = menuContentHeight + 2; // +2 cho viền trên/dưới
+
+    // --- Tính toán vị trí (Căn giữa hoàn toàn) ---
+    int startY = (consoleHeight - menuHeight) / 2;
+    int startX = (consoleWidth - menuWidth) / 2;
+
+    // Đảm bảo không bị tràn màn hình
+    if (startY < 0) startY = 0;
+    if (startX < 0) startX = 0;
+
+    // --- Vẽ Khung Viền (Box) ---
+    // Ký tự Unicode cho Box Drawing (cần SetConsoleOutputCP(437) ở main)
+    const char TL = (char)201, TR = (char)187; // Top Left/Right
+    const char BL = (char)200, BR = (char)188; // Bottom Left/Right
+    const char HZ = (char)205, VT = (char)186; // Horizontal/Vertical
+
+    // Vẽ 4 góc và viền ngang/dọc
+    gotoxy(startX, startY); cout << TL;
+    gotoxy(startX + menuWidth - 1, startY); cout << TR;
+    gotoxy(startX, startY + menuHeight - 1); cout << BL;
+    gotoxy(startX + menuWidth - 1, startY + menuHeight - 1); cout << BR;
+
+    for (int i = 1; i < menuWidth - 1; i++) {
+        gotoxy(startX + i, startY); cout << HZ;
+        gotoxy(startX + i, startY + menuHeight - 1); cout << HZ;
+    }
+
+    for (int i = 1; i < menuHeight - 1; i++) {
+        gotoxy(startX, startY + i); cout << VT;
+        gotoxy(startX + menuWidth - 1, startY + i); cout << VT;
+    }
+
+    // --- Vẽ Tiêu đề (Căn giữa ngang trong khung) ---
+    int titleX = startX + (menuWidth - title.size()) / 2;
+    gotoxy(titleX, startY + 1);
+    cout << COLOR_YELLOW_M << title << COLOR_RESET_M;
+
+    // --- Vẽ Menu Items (Căn giữa ngang trong khung) ---
+    int longestItemLength = 0;
+    for (int i = 0; i < nItems; ++i) {
+        longestItemLength = max(longestItemLength, (int)strlen(items[i]));
+    }
+
+    // Vị trí X bắt đầu để các item thẳng hàng (đã tính padding rộng hơn)
+    // Căn giữa dựa trên độ dài chữ, trừ đi một chút cho mũi tên để nhìn cân đối hơn
+    int itemStartX = startX + (menuWidth - longestItemLength) / 2 - 2;
+
+    int currentY = startY + 3; // Bắt đầu sau Tiêu đề và 1 dòng trống
+
+    for (int i = 0; i < nItems; i++) {
+        gotoxy(itemStartX, currentY);
+
+        if (i == gameModeIndex) {
+            cout << COLOR_CYAN_M << " > " << items[i] << COLOR_RESET_M;
+        } else {
+            cout << COLOR_WHITE_M << "   " << items[i] << COLOR_RESET_M;
+        }
+
+        currentY += (1 + menuInternalSpacing); // Tăng Y lên 1 dòng item + khoảng cách
+    }
+
+    // --- Vẽ Hướng dẫn Phím (Căn giữa ngang bên dưới khung) ---
+    int hintX = (consoleWidth - hint.size()) / 2;
+    gotoxy(hintX, startY + menuHeight + 1);
+    cout << COLOR_BLUE_BG_M << COLOR_WHITE_M << hint << COLOR_RESET_M;
+}
+
 
 // Hàm chạy nhạc nền
 void updateBackgroundMusic() {
@@ -722,6 +827,58 @@ void handleSettingInput() {
 
 }
 
+void handleGameModeInput() {
+    bool action = false;
+    if (GetAsyncKeyState(VK_UP) & 0x8000) {
+        gameModeIndex = (gameModeIndex+gameModeCount-1)%gameModeCount;
+        Sleep(200); action = true;
+    }
+    if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
+        gameModeIndex = (gameModeIndex+1)%gameModeCount;
+        Sleep(200); action = true;
+    }
+    if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
+        switch (gameModeIndex){
+            case GAMEMODE_CLASSIC:{
+                gameMode = CLASSIC;
+                screenState = PREPARE;
+                break;
+            }
+            case GAMEMODE_INVISIBLE:{
+                gameMode = INVISIBLE;
+                screenState = PREPARE;
+                break;
+            }
+        }
+        Sleep(120); action = true;
+    }
+    if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
+        switch (gameModeIndex){
+            case GAMEMODE_CLASSIC:{
+                gameMode = CLASSIC;
+                screenState = PREPARE;
+                break;
+            }
+            case GAMEMODE_INVISIBLE:{
+                gameMode = INVISIBLE;
+                screenState = PREPARE;
+                break;
+            }
+        }
+        Sleep(120); action = true;
+    }
+    if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
+        screenState = MAINMENU;
+        system("cls");
+        Sleep(120);
+    }
+
+    if (action){
+        drawGameModeMenu();
+    }
+
+}
+
 void hideCursor() {
     HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_CURSOR_INFO info;
@@ -768,6 +925,17 @@ void gameSettingLoop() {
     system("cls");
 }
 
+void gameModeLoop() {
+    gameModeIndex = 0;
+    drawGameModeMenu();
+
+    while (screenState == GAMEMODE) {
+        handleGameModeInput();
+        Sleep(50);
+    }
+    system("cls");
+}
+
 // Hàm xử lý input màn hình chính
 void handleMainMenu() {
     static bool up_held = false;
@@ -800,7 +968,11 @@ void handleMainMenu() {
     // Chọn menu
     if (space_now && !space_held || left_now && !left_held || right_now && !right_held) {
         switch(mainMenuIndex) {
-            case 0: // START GAME
+            case 0: // SELECT GAME MODE
+                system("cls");
+                screenState = GAMEMODE;
+                Sleep(100);
+                gameModeLoop();
                 resetGame();
                 screenState = GAMEPLAY;
                 break;
@@ -829,26 +1001,26 @@ void mainMenuLoop() {
     }
 }
 
-void handleGameInput(){
-    if ((GetAsyncKeyState(VK_LEFT) & 0x8000) && canMove(-1, 0)) x--;
-    if ((GetAsyncKeyState(VK_RIGHT) & 0x8000) && canMove(1, 0)) x++;
-    if ((GetAsyncKeyState(VK_DOWN) & 0x8000) && canMove(0, 1)) y++;
-    if (GetAsyncKeyState('C') & 0x8000){
-        rotateBlockClock();
-        _sleep(100); // Delay nhỏ để tránh xoay quá nhanh
-    }
-    if (GetAsyncKeyState('Z') & 0x8000) {
-        rotateBlockCterClock();
-        _sleep(100); // Delay nhỏ để tránh xoay quá nhanh
-    }
-    if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
-        hardDrop();
-        _sleep(100);
-    }
-    if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
-        isGameOver = true; // Thoát game chủ động
-    }
-}
+//void handleGameInput(){
+//    if ((GetAsyncKeyState(VK_LEFT) & 0x8000) && canMove(-1, 0)) x--;
+//    if ((GetAsyncKeyState(VK_RIGHT) & 0x8000) && canMove(1, 0)) x++;
+//    if ((GetAsyncKeyState(VK_DOWN) & 0x8000) && canMove(0, 1)) y++;
+//    if (GetAsyncKeyState('C') & 0x8000){
+//        rotateBlockClock();
+//        _sleep(100); // Delay nhỏ để tránh xoay quá nhanh
+//    }
+//    if (GetAsyncKeyState('Z') & 0x8000) {
+//        rotateBlockCterClock();
+//        _sleep(100); // Delay nhỏ để tránh xoay quá nhanh
+//    }
+//    if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
+//        hardDrop();
+//        _sleep(100);
+//    }
+//    if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
+//        isGameOver = true; // Thoát game chủ động
+//    }
+//}
 
 //void draw() {
 //    gotoxy(0, 0);
@@ -1156,8 +1328,11 @@ void hardDrop(){
         block2Board();
         boardDelBlock();
     }
-    effectParticles(x + 1, y + 3);
-    effectParticles(x + 2, y + 3);
+    if (gameMode != INVISIBLE){
+        effectParticles(x + 1, y + 3);
+        effectParticles(x + 2, y + 3);
+    }
+
     block2Board();
     removeLine();
     x = 5; y = 0; b = next_b; next_b = randomInRange(0, 7);
@@ -1209,7 +1384,7 @@ int main()
     SetConsoleOutputCP(437);
     srand(time(0));
     hideCursor();
-    gameMode = CLASSIC;
+    gameMode = INVISIBLE;
 
     drawMainMenu();
 
@@ -1258,6 +1433,7 @@ int main()
             }
             block2Board();
             draw();
+            debug();
             Sleep(tick);
         }
 
