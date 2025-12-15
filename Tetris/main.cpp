@@ -66,10 +66,11 @@ int next_b=0;
 bool menuTriggered = false;
 int x = 4, y = 0, b = 1;
 bool isGameOver = false;
+enum Mode { CLASSIC, INVISIBLE };
+Mode gameMode = CLASSIC;
 int resumeMenuIndex = 0;
 int settingIndex = 0;
 enum Screen { MAINMENU, GAMEPLAY, MENU, SETTINGS, PAUSE, SAVE, SUBMIT, SUBMITTING };
-
 Screen screenState = MAINMENU;
 const char* mainMenuItems[] = {"START GAME", "SETTINGS", "EXIT"};
 const int mainMenuCount = 3;
@@ -828,6 +829,27 @@ void mainMenuLoop() {
     }
 }
 
+void handleGameInput(){
+    if ((GetAsyncKeyState(VK_LEFT) & 0x8000) && canMove(-1, 0)) x--;
+    if ((GetAsyncKeyState(VK_RIGHT) & 0x8000) && canMove(1, 0)) x++;
+    if ((GetAsyncKeyState(VK_DOWN) & 0x8000) && canMove(0, 1)) y++;
+    if (GetAsyncKeyState('C') & 0x8000){
+        rotateBlockClock();
+        _sleep(100); // Delay nhỏ để tránh xoay quá nhanh
+    }
+    if (GetAsyncKeyState('Z') & 0x8000) {
+        rotateBlockCterClock();
+        _sleep(100); // Delay nhỏ để tránh xoay quá nhanh
+    }
+    if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
+        hardDrop();
+        _sleep(100);
+    }
+    if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
+        isGameOver = true; // Thoát game chủ động
+    }
+}
+
 //void draw() {
 //    gotoxy(0, 0);
 //    for (int i = 0; i < H; i++, cout << "\n") {
@@ -1167,7 +1189,14 @@ void generateNextBlock(){
 }
 
 void debug(){
-    cout<<x<<" "<<y<<"\n";
+    ofstream ost("text.txt");
+    for (int i = 0; i < H; i++){
+        for (int j = 0; j < W; j++){
+            ost<<board[i][j];
+        }
+        ost<<"\n";
+    }
+    ost.close();
 }
 
 int main()
@@ -1180,6 +1209,7 @@ int main()
     SetConsoleOutputCP(437);
     srand(time(0));
     hideCursor();
+    gameMode = CLASSIC;
 
     drawMainMenu();
 
