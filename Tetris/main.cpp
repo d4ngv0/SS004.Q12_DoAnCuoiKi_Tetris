@@ -3,14 +3,6 @@
 #include <windows.h>
 #include <ctime>
 #include <conio.h>
-
-using namespace std;
-
-// --- CẤU HÌNH GAME ---
-#define H 20      // Chiều cao
-#define W 12      // Chiều rộng
-#define TICK 50   // Tốc độ refresh game (ms)
-
 #include <string>
 #include <fstream>
 #include <vector>
@@ -34,6 +26,7 @@ using namespace std;
 
 #define GAMEMODE_CLASSIC 0
 #define GAMEMODE_INVISIBLE 1
+#define GAMEMODE_COMPETITIVE 2
 
 // Định nghĩa màu sắc cơ bản và nâng cao
 #define FOREGROUND_WHITE (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE)
@@ -80,9 +73,9 @@ bool menuTriggered = false;
 int x = 4, y = 0, b = 1;
 bool isGameOver = false;
 
-enum Mode { CLASSIC, INVISIBLE };
+enum Mode { CLASSIC, INVISIBLE, COMPETITIVE };
 int gameModeIndex = 0;
-const int gameModeCount = 2;
+const int gameModeCount = 3;
 Mode gameMode = CLASSIC;
 int resumeMenuIndex = 0;
 int settingIndex = 0;
@@ -135,8 +128,7 @@ void hideCursor() {
     info.bVisible = FALSE;
     SetConsoleCursorInfo(consoleHandle, &info);
 }
-
-// --- LỚP XỬ LÝ GAME RIÊNG BIỆT ---
+// --- MODE 1V1 ---
 class TetrisPlayer {
 private:
     char board[H][W];
@@ -147,7 +139,7 @@ private:
     int speed;            // Tốc độ rơi (càng nhỏ càng nhanh)
     int offsetX;          // Vị trí vẽ trên màn hình (để chia đôi màn hình)
     int playerID;         // 1 hoặc 2
-    
+
 public:
     bool gameOver;
     char currentBlock[4][4];
@@ -167,9 +159,9 @@ public:
         // 1. Xóa sạch bàn cờ TRƯỚC KHI sinh gạch
         for (int i = 0; i < H; i++) {
             for (int j = 0; j < W; j++) {
-                if (i == H - 1 || j == 0 || j == W - 1) 
+                if (i == H - 1 || j == 0 || j == W - 1)
                     board[i][j] = '#'; // Tường
-                else 
+                else
                     board[i][j] = ' '; // Khoảng trống
             }
         }
@@ -183,7 +175,7 @@ public:
         y = 0;
         type = rand() % 7;
         rotation = 0;
-        
+
         // Copy hình dáng gạch vào biến tạm
         for(int i=0; i<4; i++)
             for(int j=0; j<4; j++)
@@ -202,9 +194,9 @@ public:
                 if (currentBlock[i][j] != ' ') {
                     int newX = x + j + dx;
                     int newY = y + i + dy;
-                    
+
                     // Ra khỏi biên hoặc đụng block đã đóng băng
-                    if (newX < 0 || newX >= W || newY >= H || board[newY][newX] != ' ') 
+                    if (newX < 0 || newX >= W || newY >= H || board[newY][newX] != ' ')
                         return false;
                 }
             }
@@ -243,6 +235,90 @@ public:
                 spawnBlock();
             }
             timer = 0;
+        }
+    }
+    // Đóng băng gạch vào bàn cờ
+    void lockBlock() {
+        for (int i = 0; i < 4; i++)
+            for (int j = 0; j < 4; j++)
+                if (currentBlock[i][j] != ' ')
+                    board[y + i][x + j] = currentBlock[i][j];
+    }
+
+    // Kiểm tra ăn dòng
+    void checkLines() {
+        int lines = 0;
+        for (int i = H - 2; i > 0; i--) {
+            bool full = true;
+            for (int j = 1; j < W - 1; j++)
+                if (board[i][j] == ' ') { full = false; break; }
+
+            if (full) {
+                // Dời các dòng trên xuống
+                for (int k = i; k > 0; k--)
+                    for (int j = 1; j < W - 1; j++)
+                        board[k][j] = board[k - 1][j];
+                // Dòng trên cùng thành trống
+                for (int j = 1; j < W - 1; j++) board[0][j] = ' ';
+
+                i++; // Kiểm tra lại dòng hiện tại (do dòng trên vừa tụt xuống)
+                lines++;
+            }
+        }
+        if (lines > 0) score += lines * 100;
+    }
+    // Xử lý phím bấm
+    void input() {
+        if (gameOver) return;
+
+        // Player 1: WASD
+        if (playerID == 1) {
+            if ((GetAsyncKeyState('A') & 0x8000) && checkCollision(-1, 0)) x--;
+            if ((GetAsyncKeyState('D') & 0x8000) && checkCollision(1, 0)) x++;
+            if ((GetAsyncKeyState('S') & 0x8000) && checkCollision(0, 1)) y++;
+            if ((GetAsyncKeyState('W') & 0x8000)) { rotate(); Sleep(100); } // Sleep nhỏ để tránh xoay quá nhanh
+        }
+        // Player 2: Mũi tên
+        else {
+            if ((GetAsyncKeyState(VK_LEFT) & 0x8000) && checkCollision(-1, 0)) x--;
+            if ((GetAsyncKeyState(VK_RIGHT) & 0x8000) && checkCollision(1, 0)) x++;
+            if ((GetAsyncKeyState(VK_DOWN) & 0x8000) && checkCollision(0, 1)) y++;
+            if ((GetAsyncKeyState(VK_UP) & 0x8000)) { rotate(); Sleep(100); }
+        }
+    }
+
+    void draw() {
+        // Vẽ tiêu đề
+        gotoxy(offsetX, 0); cout << "PLAYER " << playerID;
+        gotoxy(offsetX, 1); cout << "Score: " << score;
+
+        for (int i = 0; i < H; i++) {
+            gotoxy(offsetX, i + 3);
+            for (int j = 0; j < W; j++) {
+                // Kiểm tra xem có phải là gạch đang rơi không
+                bool isFalling = false;
+                if (!gameOver && j >= x && j < x + 4 && i >= y && i < y + 4) {
+                    if (currentBlock[i - y][j - x] != ' ') {
+                        cout << "[]";
+                        isFalling = true;
+                    }
+                }
+
+                if (!isFalling) {
+                    if (board[i][j] == '#') cout << (char)178 << (char)178; // Tường
+                    else if (board[i][j] == ' ') cout << " ."; // Nền
+                    else cout << "[]"; // Gạch đã đóng băng
+                }
+            }
+        }
+
+        if (gameOver) {
+            gotoxy(offsetX + 2, H / 2 + 3);
+            cout << "GAME OVER!";
+        }
+    }
+};
+
 void clearLine(int y, int width = 50) {
     gotoxy(0, y);
     for(int i = 0; i < width; i++) cout << " ";
@@ -585,7 +661,7 @@ void drawGameModeMenu() {
 
     // Tiêu đề và nội dung
     string title = "TETRIS GAME";
-    const char* items[] = {"CLASSIC", "INVISIBLE"};
+    const char* items[] = {"CLASSIC", "INVISIBLE", "COMPETITVE"};
     int nItems = sizeof(items) / sizeof(items[0]);
     string hint = "Up Arrow/Down Arrow = Move; SPACE/Left Arrow/Right Arrow = Select";
 
@@ -964,7 +1040,7 @@ void handleGameModeInput() {
         gameModeIndex = (gameModeIndex+1)%gameModeCount;
         Sleep(200); action = true;
     }
-    if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
+    if (GetAsyncKeyState(VK_LEFT) & 0x8000 || GetAsyncKeyState(VK_RIGHT) & 0x8000 || GetAsyncKeyState(VK_SPACE) & 0x8000 ) {
         switch (gameModeIndex){
             case GAMEMODE_CLASSIC:{
                 gameMode = CLASSIC;
@@ -976,18 +1052,8 @@ void handleGameModeInput() {
                 screenState = PREPARE;
                 break;
             }
-        }
-        Sleep(120); action = true;
-    }
-    if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
-        switch (gameModeIndex){
-            case GAMEMODE_CLASSIC:{
-                gameMode = CLASSIC;
-                screenState = PREPARE;
-                break;
-            }
-            case GAMEMODE_INVISIBLE:{
-                gameMode = INVISIBLE;
+            case GAMEMODE_COMPETITIVE:{
+                gameMode = COMPETITIVE;
                 screenState = PREPARE;
                 break;
             }
@@ -1006,13 +1072,13 @@ void handleGameModeInput() {
 
 }
 
-void hideCursor() {
-    HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
-    CONSOLE_CURSOR_INFO info;
-    info.dwSize = 100;
-    info.bVisible = FALSE;
-    SetConsoleCursorInfo(consoleHandle, &info);
-}
+//void hideCursor() {
+//    HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+//    CONSOLE_CURSOR_INFO info;
+//    info.dwSize = 100;
+//    info.bVisible = FALSE;
+//    SetConsoleCursorInfo(consoleHandle, &info);
+//}
 
 void initBoard() {
     for (int i = 0; i < H; i++)
@@ -1394,6 +1460,14 @@ void removeLine() {
     }
 }
 
+void generateNextBlock(){
+    b = next_b;
+    next_b = randomInRange(0, 7);
+    copyTemplateToCurrent(b);
+    x = 5; y = 0;
+}
+
+
 bool canRotate(char temp[4][4], int& offset) {
     bool isCollide = true;
     while (isCollide && (offset < 5 && offset > -5)){
@@ -1412,42 +1486,16 @@ bool canRotate(char temp[4][4], int& offset) {
             if (isCollide) break;
         }
     }
+    return true;
+}
 
-    // Đóng băng gạch vào bàn cờ
-    void lockBlock() {
-        for (int i = 0; i < 4; i++)
-            for (int j = 0; j < 4; j++)
-                if (currentBlock[i][j] != ' ')
-                    board[y + i][x + j] = currentBlock[i][j];
-    }
-
-    // Kiểm tra ăn dòng
-    void checkLines() {
-        int lines = 0;
-        for (int i = H - 2; i > 0; i--) {
-            bool full = true;
-            for (int j = 1; j < W - 1; j++)
-                if (board[i][j] == ' ') { full = false; break; }
-            
-            if (full) {
-                // Dời các dòng trên xuống
-                for (int k = i; k > 0; k--)
-                    for (int j = 1; j < W - 1; j++)
-                        board[k][j] = board[k - 1][j];
-                // Dòng trên cùng thành trống
-                for (int j = 1; j < W - 1; j++) board[0][j] = ' ';
-                
-                i++; // Kiểm tra lại dòng hiện tại (do dòng trên vừa tụt xuống)
-                lines++;
-            }
-        }
-        if (lines > 0) score += lines * 100;
 void rotateBlockClock() {
     char temp[4][4];
     for (int i = 0; i < 4; i++)
         for (int j = 0; j < 4; j++)
             temp[j][3 - i] = currentBlock[i][j];
     int offset = 0;
+
     if (canRotate(temp, offset)) {
         for (int i = 0; i < 4; i++)
             for (int j = 0; j < 4; j++)
@@ -1468,55 +1516,7 @@ void rotateBlockCterClock() {
                 currentBlock[i][j] = temp[i][j];
         x += offset;
     }
-
-    // Xử lý phím bấm
-    void input() {
-        if (gameOver) return;
-
-        // Player 1: WASD
-        if (playerID == 1) {
-            if ((GetAsyncKeyState('A') & 0x8000) && checkCollision(-1, 0)) x--;
-            if ((GetAsyncKeyState('D') & 0x8000) && checkCollision(1, 0)) x++;
-            if ((GetAsyncKeyState('S') & 0x8000) && checkCollision(0, 1)) y++;
-            if ((GetAsyncKeyState('W') & 0x8000)) { rotate(); Sleep(100); } // Sleep nhỏ để tránh xoay quá nhanh
-        }
-        // Player 2: Mũi tên
-        else {
-            if ((GetAsyncKeyState(VK_LEFT) & 0x8000) && checkCollision(-1, 0)) x--;
-            if ((GetAsyncKeyState(VK_RIGHT) & 0x8000) && checkCollision(1, 0)) x++;
-            if ((GetAsyncKeyState(VK_DOWN) & 0x8000) && checkCollision(0, 1)) y++;
-            if ((GetAsyncKeyState(VK_UP) & 0x8000)) { rotate(); Sleep(100); }
-        }
-    }
-
-    void draw() {
-        // Vẽ tiêu đề
-        gotoxy(offsetX, 0); cout << "PLAYER " << playerID;
-        gotoxy(offsetX, 1); cout << "Score: " << score;
-
-        for (int i = 0; i < H; i++) {
-            gotoxy(offsetX, i + 3);
-            for (int j = 0; j < W; j++) {
-                // Kiểm tra xem có phải là gạch đang rơi không
-                bool isFalling = false;
-                if (!gameOver && j >= x && j < x + 4 && i >= y && i < y + 4) {
-                    if (currentBlock[i - y][j - x] != ' ') {
-                        cout << "[]";
-                        isFalling = true;
-                    }
-                }
-
-                if (!isFalling) {
-                    if (board[i][j] == '#') cout << (char)178 << (char)178; // Tường
-                    else if (board[i][j] == ' ') cout << " ."; // Nền
-                    else cout << "[]"; // Gạch đã đóng băng
-                }
-            }
-        }
-        
-        if (gameOver) {
-            gotoxy(offsetX + 2, H / 2 + 3);
-            cout << "GAME OVER!";
+}
 bool canFall() {
     currentSpeed += tick;
     if (currentSpeed >= speed) { currentSpeed = 0; return true; }
@@ -1536,13 +1536,13 @@ void hardDrop(){
 
     block2Board();
     removeLine();
-    x = 5; y = 0; b = next_b; next_b = randomInRange(0, 7);
+    generateNextBlock();
 
     copyTemplateToCurrent(b);
     if (!canMove(0, 0)) {
         isGameOver = true;
     }
-  currentSpeed = 0;
+    currentSpeed = 0;
 }
 
 void handleGameInput(){
@@ -1555,13 +1555,6 @@ void handleGameInput(){
     if (GetAsyncKeyState(VK_SPACE) & 0x8000) { hardDrop(); Sleep(200); }
     if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) { isGameOver = true; }
 
-}
-
-void generateNextBlock(){
-    b = next_b;
-    next_b = randomInRange(0, 7);
-    copyTemplateToCurrent(b);
-    x = 4; y = 0;
 }
 
 void debug(){
@@ -1585,8 +1578,6 @@ int main()
     SetConsoleOutputCP(437);
     srand(time(0));
     hideCursor();
-    gameMode = INVISIBLE;
-
     drawMainMenu();
 
     updateBackgroundMusic();     // Bắt đầu nhạc nền
@@ -1597,6 +1588,40 @@ int main()
         if (screenState == MAINMENU){
             mainMenuLoop();
             continue;
+        }
+        // ===== 1v1 Mode ======
+        if (gameMode == COMPETITIVE){
+            TetrisPlayer p1(2, 1);
+            TetrisPlayer p2(W * 2 + 10, 2);
+
+            system("cls");
+
+            // Màn hình chờ
+            gotoxy(15, 10); cout << "READY? PRESS ENTER TO START!";
+            while(true) {
+                if (GetAsyncKeyState(VK_RETURN) & 0x8000) break;
+            }
+            system("cls");
+
+            while (true) {
+                // 1. Nhận Input
+                p1.input();
+                p2.input();
+
+                // 2. Xử lý Logic
+                p1.update();
+                p2.update();
+
+                // 3. Vẽ ra màn hình
+                p1.draw();
+                p2.draw();
+
+                // Thoát game
+                if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) break;
+
+                Sleep(tick);
+            }
+
         }
         // Vòng lặp ván chơi (Gameplay Loop)
         while (!isGameOver) {
@@ -1644,9 +1669,6 @@ int main()
         isInGame = false;
         // Đợi người chơi chọn: R để chơi lại, ESC để thoát hẳn
         while (true) {
-            if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
-                break; // Thoát vòng lặp chờ -> Quay lại vòng lặp Game App -> resetGame()
-            }
             if (GetAsyncKeyState('Z') & 0x8000){
                 showInputSaveLocalScore();
                 screenState = SAVE;
@@ -1655,8 +1677,10 @@ int main()
                 showInputSubmitGlobalScore();
                 screenState = SUBMIT;
             }
-            if (GetAsyncKeyState('R') & 0x8000) {
+            if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
                 screenState = GAMEPLAY;
+                resetGame();
+                Sleep(100);
                 break; // Thoát vòng lặp chờ -> Quay lại vòng lặp Game App -> resetGame()
             }
             if (GetAsyncKeyState('M') & 0x8000) {
@@ -1671,45 +1695,5 @@ int main()
             Sleep(100);
         }
     }
-};
-
-int main() {
-    SetConsoleOutputCP(437); // Hiển thị ký tự đặc biệt
-    hideCursor();
-    srand(time(0)); // Reset bộ sinh số ngẫu nhiên
-
-    // Khởi tạo 2 người chơi ở 2 vị trí màn hình khác nhau
-    // Player 1 ở tọa độ x=2, Player 2 ở tọa độ x=40
-    TetrisPlayer p1(2, 1);
-    TetrisPlayer p2(W * 2 + 10, 2); 
-
-    system("cls");
-    
-    // Màn hình chờ
-    gotoxy(15, 10); cout << "READY? PRESS ENTER TO START!";
-    while(true) {
-        if (GetAsyncKeyState(VK_RETURN) & 0x8000) break;
-    }
-    system("cls");
-
-    while (true) {
-        // 1. Nhận Input
-        p1.input();
-        p2.input();
-
-        // 2. Xử lý Logic
-        p1.update();
-        p2.update();
-
-        // 3. Vẽ ra màn hình
-        p1.draw();
-        p2.draw();
-        
-        // Thoát game
-        if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) break;
-
-        Sleep(TICK);
-    }
-
     return 0;
 }
