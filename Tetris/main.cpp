@@ -105,7 +105,7 @@ void copyTemplateToCurrent(int idx) {
 
 struct Settings {
     int volumePercent = 50;
-    bool soundEnabled = false;
+    bool soundEnabled = true;
     int fallSpeedPercent = 100;
 };
 Settings settings;
@@ -560,7 +560,7 @@ void getConsoleSize(int &width, int &height) {
 // Hàm vẽ màn hình chính
 void drawMainMenu() {
     system("cls");
-
+    cout<<"Created by: \nVo Thanh Hai Dang, Tran Tien Dat\nTran Minh Hoang, Vo Cao Nguyen\nVu Hoang Phong. For SS004.Q12-Final Project.\nMusic: \nSerhii_Kliets - Spaceship. Arcade Shooter\nGame Background Soundtrack\n";
     // Lấy kích thước console thực tế
     int consoleWidth = 80;
     int consoleHeight = 25;
@@ -1059,11 +1059,6 @@ void handleGameModeInput() {
             }
         }
         Sleep(120); action = true;
-    }
-    if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
-        screenState = MAINMENU;
-        system("cls");
-        Sleep(120);
     }
 
     if (action){
