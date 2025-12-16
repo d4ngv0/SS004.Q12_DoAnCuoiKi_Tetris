@@ -1433,7 +1433,7 @@ int main()
             }
             block2Board();
             draw();
-            debug();
+//            debug();
             Sleep(tick);
         }
 
