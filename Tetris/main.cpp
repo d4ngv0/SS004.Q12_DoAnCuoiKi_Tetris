@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <ctime>
+#include <iomanip>
 #include <mmsystem.h>    // Cho PlaySound
 #pragma comment(lib, "winmm.lib") // Liên kết thư viện
 
@@ -24,6 +25,12 @@ using namespace std;
 #define SETTING_SOUND 3
 #define SETTING_BACK_TO_MAIN 4
 
+#define MENU_START 0
+#define MENU_LEADERBOARD 1
+#define MENU_SETTINGS 2
+#define MENU_CREDITS 3
+#define MENU_QUIT 4
+
 #define GAMEMODE_CLASSIC 0
 #define GAMEMODE_INVISIBLE 1
 #define GAMEMODE_COMPETITIVE 2
@@ -35,19 +42,18 @@ using namespace std;
 #define COLOR_BRIGHT_WHITE (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY)
 #define COLOR_RED (FOREGROUND_RED | FOREGROUND_INTENSITY)
 
+#define COLOR_RESET_M     "\033[0m"
+#define COLOR_BLUE_BG_M   "\033[44m"
+#define COLOR_YELLOW_M    "\033[93m"
+#define COLOR_CYAN_M      "\033[96m"
+#define COLOR_WHITE_M     "\033[97m"
+
 // Hàm chọn màu: Tất cả gạch là màu TRẮNG SÁNG (Monochrome style)
 int getBlockColor(char type) {
     if (type == '#') return COLOR_GRAY; // Tường màu xám
     return COLOR_BRIGHT_WHITE;          // Gạch màu trắng sáng
 }
 
-
-
-#define COLOR_RESET_M     "\033[0m"
-#define COLOR_BLUE_BG_M   "\033[44m"
-#define COLOR_YELLOW_M    "\033[93m"
-#define COLOR_CYAN_M      "\033[96m"
-#define COLOR_WHITE_M     "\033[97m"
 // --- Khai báo biến toàn cục ---
 char board[H][W] = {};
 char blocks[][4][4] = {
@@ -72,17 +78,17 @@ int next_b=0;
 bool menuTriggered = false;
 int x = 4, y = 0, b = 1;
 bool isGameOver = false;
-
+int leaderboardPage = 0;
 enum Mode { CLASSIC, INVISIBLE, COMPETITIVE };
 int gameModeIndex = 0;
 const int gameModeCount = 3;
 Mode gameMode = CLASSIC;
 int resumeMenuIndex = 0;
 int settingIndex = 0;
-enum Screen { MAINMENU, GAMEPLAY, PREPARE, GAMEMODE, MENU, SETTINGS, PAUSE, SAVE, SUBMIT, SUBMITTING };
+enum Screen { MAINMENU, CREDITS, LEADERBOARD, GAMEPLAY, PREPARE, GAMEMODE, MENU, SETTINGS, PAUSE, SAVE, SUBMIT, SUBMITTING };
 Screen screenState = MAINMENU;
-const char* mainMenuItems[] = {"START GAME", "SETTINGS", "EXIT"};
-const int mainMenuCount = 3;
+const char* mainMenuItems[] = {"START GAME", "LEADERBOARD", "SETTINGS", "CREDITS","EXIT"};
+const int mainMenuCount = 5;
 const char* resumeMenuItems[] = {"Resume game", "Fall speed", "Volume", "Sound enabled", "Back to Main Menu"};
 const char* settingItems[] = { "Fall speed", "Volume", "Sound enabled","Back to Main Menu"};
 const int resumeMenuCount = sizeof(resumeMenuItems) / sizeof(resumeMenuItems[0]);
@@ -560,7 +566,7 @@ void getConsoleSize(int &width, int &height) {
 // Hàm vẽ màn hình chính
 void drawMainMenu() {
     system("cls");
-    cout<<"Created by: \nVo Thanh Hai Dang, Tran Tien Dat\nTran Minh Hoang, Vo Cao Nguyen\nVu Hoang Phong. For SS004.Q12-Final Project.\nMusic: \nSerhii_Kliets - Spaceship. Arcade Shooter\nGame Background Soundtrack\n";
+
     // Lấy kích thước console thực tế
     int consoleWidth = 80;
     int consoleHeight = 25;
@@ -572,7 +578,7 @@ void drawMainMenu() {
 
     // Tiêu đề và nội dung
     string title = "TETRIS GAME";
-    const char* items[] = {"START GAME", "SETTINGS", "EXIT"};
+    const char* items[] = {"START GAME", "LEADERBOARD", "SETTINGS", "CREDITS", "EXIT"};
     int nItems = sizeof(items) / sizeof(items[0]);
     string hint = "Up Arrow/Down Arrow = Move; SPACE/Left Arrow/Right Arrow = Select";
 
@@ -755,46 +761,6 @@ void setMusicVolume(int percent) {
     waveOutSetVolume(NULL, volumeAllChannels); // Điều chỉnh volume toàn hệ thống
 }
 
-//Hàm vẽ menu console
-//void drawResumeMenu() {
-//    // Clear vùng menu (10 dòng đầu)
-//    for(int i = 0; i < 30; i++) {
-//        clearLine(i);
-//    }
-//
-//    // Vẽ UI
-//    int uiX = W * 2 + 4;
-//    setColor(COLOR_BRIGHT_WHITE);
-//    gotoxy(uiX, 4); cout << "Level: " << level;
-//    gotoxy(uiX, 5); cout << "Score: " << score;
-//
-//    gotoxy(uiX, 8); cout << "--- NEXT ---";
-//    for(int i=0; i<4; i++) { gotoxy(uiX + 2, 10 + i); cout << "        "; }
-//
-//    for (int i = 0; i < 4; i++) {
-//        gotoxy(uiX + 2, 10 + i);
-//        for (int j = 0; j < 4; j++) {
-//            if (blocks[next_b][i][j] != ' ') {
-//                setColor(COLOR_BRIGHT_WHITE);
-//                cout << (unsigned char)219 << (unsigned char)219;
-//                setColor(COLOR_WHITE);
-//            } else {
-//                cout << "  ";
-//            }
-//        }
-//    }
-//
-//    setColor(COLOR_WHITE);
-//    gotoxy(uiX, 15); cout << "--- KEYS ---";
-//    gotoxy(uiX, 16); cout << " Left/Right : Move";
-//    gotoxy(uiX, 17); cout << " Z/C        : Rotate";
-//    gotoxy(uiX, 18); cout << " Down       : Soft drop";
-//    gotoxy(uiX, 19); cout << " Space      : Hard drop";
-//    gotoxy(uiX, 20); cout << " M          : Menu";
-//}
-
-
-
 void drawResumeMenu() {
     system("cls");
     for(int i = 0; i < 12; i++) { clearLine(i); }
@@ -883,16 +849,19 @@ void handleResumeMenuInput() {
             case SETTING_SOUND:{
                 settings.soundEnabled = !settings.soundEnabled;
                 updateBackgroundMusic();
+                action = true;
                 break;
             }
             case SETTING_SPEED:{
                 settings.fallSpeedPercent = max(50, settings.fallSpeedPercent - 5);
                 applyFallSpeed();
+                action = true;
                 break;
             }
             case SETTING_VOLUMN:{
                 settings.volumePercent = max(0, settings.volumePercent - 5);
                 setMusicVolume(settings.volumePercent); // cập nhật volume
+                action = true;
                 break;
             }
             case SETTING_RESUME:{
@@ -908,23 +877,26 @@ void handleResumeMenuInput() {
                 break;
             }
         }
-        Sleep(120); action = true;
+        Sleep(120);
     }
     if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
         switch (resumeMenuIndex){
             case SETTING_SOUND:{
                 settings.soundEnabled = !settings.soundEnabled;
                 updateBackgroundMusic();
+                action = true;
                 break;
             }
             case SETTING_SPEED:{
                 settings.fallSpeedPercent = min(200, settings.fallSpeedPercent + 5);
                 applyFallSpeed();
+                action = true;
                 break;
             }
             case SETTING_VOLUMN:{
                 settings.volumePercent = min(100, settings.volumePercent + 5);
                 setMusicVolume(settings.volumePercent); // cập nhật volume
+                action = true;
                 break;
             }
             case SETTING_RESUME:{
@@ -944,7 +916,7 @@ void handleResumeMenuInput() {
                 break;
             }
         }
-        Sleep(120); action = true;
+        Sleep(120);
     }
     if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
         screenState = GAMEPLAY; // Nếu đang chơi thì tiếp tục
@@ -1067,189 +1039,6 @@ void handleGameModeInput() {
 
 }
 
-//void hideCursor() {
-//    HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
-//    CONSOLE_CURSOR_INFO info;
-//    info.dwSize = 100;
-//    info.bVisible = FALSE;
-//    SetConsoleCursorInfo(consoleHandle, &info);
-//}
-
-void initBoard() {
-    for (int i = 0; i < H; i++)
-        for (int j = 0; j < W; j++)
-            if ((i == H - 1) || (j == 0) || (j == W - 1)) board[i][j] = '#';
-            else board[i][j] = ' ';
-}
-
-void resetGame() {
-    initBoard();
-    speed = 1000;
-    currentSpeed = 0;
-    level = 1;
-    score = 0;
-    x = 4; y = 0;
-    b = randomInRange(0, 7);
-    next_b = randomInRange(0, 7);
-    copyTemplateToCurrent(b);
-    isGameOver = false;
-    isInGame = true;
-    system("cls"); // Xóa màn hình console
-}
-
-void gameSettingLoop() {
-    settingIndex = 1;
-    drawSettingMenu(); // Vẽ menu pause lần đầu
-
-    while (screenState == SETTINGS) {
-        // Xử lý input cho menu
-        handleSettingInput();
-
-        // Sleep nhỏ để tránh chiếm CPU
-        Sleep(50);
-    }
-
-    // Khi thoát menu, xóa màn hình và quay lại gameplay
-    system("cls");
-}
-
-void gameModeLoop() {
-    gameModeIndex = 0;
-    drawGameModeMenu();
-
-    while (screenState == GAMEMODE) {
-        handleGameModeInput();
-        Sleep(50);
-    }
-    system("cls");
-}
-
-// Hàm xử lý input màn hình chính
-void handleMainMenu() {
-    static bool up_held = false;
-    static bool down_held = false;
-    static bool space_held = false;
-    static bool left_held = false;
-    static bool right_held = false;
-
-
-    bool up_now = GetAsyncKeyState(VK_UP) & 0x8000;
-    bool down_now = GetAsyncKeyState(VK_DOWN) & 0x8000;
-    bool space_now = GetAsyncKeyState(VK_SPACE) & 0x8000;
-    bool left_now = GetAsyncKeyState(VK_LEFT) & 0x8000;
-    bool right_now = GetAsyncKeyState(VK_RIGHT) & 0x8000;
-
-    // Di chuyển menu lên
-    if (up_now && !up_held) {
-        mainMenuIndex = (mainMenuIndex + mainMenuCount - 1) % mainMenuCount;
-        drawMainMenu();
-    }
-    up_held = up_now;
-
-    // Di chuyển menu xuống
-    if (down_now && !down_held) {
-        mainMenuIndex = (mainMenuIndex + 1) % mainMenuCount;
-        drawMainMenu();
-    }
-    down_held = down_now;
-
-    // Chọn menu
-    if (space_now && !space_held || left_now && !left_held || right_now && !right_held) {
-        switch(mainMenuIndex) {
-            case 0: // SELECT GAME MODE
-                system("cls");
-                screenState = GAMEMODE;
-                Sleep(100);
-                gameModeLoop();
-                resetGame();
-                screenState = GAMEPLAY;
-                break;
-            case 1: // SETTINGS / MENU
-                screenState = SETTINGS;
-                system("cls");
-                gameSettingLoop();
-                drawMainMenu();
-                break;
-            case 2: // EXIT
-                exit(0);
-        }
-    }
-    space_held = space_now;
-    right_held = right_now;
-    left_held = left_now;
-}
-
-void mainMenuLoop() {
-    isInGame = false;
-    drawMainMenu(); // vẽ menu ngay khi vào
-
-    while (screenState == MAINMENU) {
-        handleMainMenu(); // xử lý input
-        Sleep(20);
-    }
-}
-
-//void handleGameInput(){
-//    if ((GetAsyncKeyState(VK_LEFT) & 0x8000) && canMove(-1, 0)) x--;
-//    if ((GetAsyncKeyState(VK_RIGHT) & 0x8000) && canMove(1, 0)) x++;
-//    if ((GetAsyncKeyState(VK_DOWN) & 0x8000) && canMove(0, 1)) y++;
-//    if (GetAsyncKeyState('C') & 0x8000){
-//        rotateBlockClock();
-//        _sleep(100); // Delay nhỏ để tránh xoay quá nhanh
-//    }
-//    if (GetAsyncKeyState('Z') & 0x8000) {
-//        rotateBlockCterClock();
-//        _sleep(100); // Delay nhỏ để tránh xoay quá nhanh
-//    }
-//    if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
-//        hardDrop();
-//        _sleep(100);
-//    }
-//    if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
-//        isGameOver = true; // Thoát game chủ động
-//    }
-//}
-
-//void draw() {
-//    gotoxy(0, 0);
-//    for (int i = 0; i < H; i++, cout << "\n") {
-//        for (int j = 0; j < W; j++) {
-//            if (board[i][j] == ' ') cout << "  ";
-//            else if (board[i][j] == '#') cout << (unsigned char)219 << (unsigned char)219; // Tường
-//            else cout << (unsigned char)219 << (unsigned char)219; // Gạch
-//        }
-//    }
-//    int uiX = W * 2 + 4;
-//
-//
-//    gotoxy(uiX, 4); cout << "Level: " << level;
-//    gotoxy(uiX, 5); cout << "Score: " << score;
-//
-//
-//    gotoxy(uiX, 8); cout << "--- NEXT ---";
-//
-//    for(int i=0; i<4; i++) {
-//        gotoxy(uiX + 2, 10 + i); cout << "        ";
-//    }
-//
-//    for (int i = 0; i < 4; i++) {
-//        gotoxy(uiX + 2, 10 + i);
-//        for (int j = 0; j < 4; j++) {
-//            if (blocks[next_b][i][j] != ' ') {
-//                cout << (unsigned char)219 << (unsigned char)219;
-//            } else {
-//                cout << "  ";
-//            }
-//        }
-//    }
-//
-//    gotoxy(uiX, 15); cout << "--- KEYS ---";
-//    gotoxy(uiX, 16); cout << " Left, Right Arrow : Move";
-//    gotoxy(uiX, 17); cout << " Z, C              : Rotate";
-//    gotoxy(uiX, 18); cout << " Down Arrow        : Soft drop";
-//    gotoxy(uiX, 19); cout << " SPACE             : Hard drop";
-//    gotoxy(uiX, 20); cout << " M                 : Menu";
-//}
 string execCurl(string cmd) {
     string result;
     char buffer[256];
@@ -1308,6 +1097,16 @@ bool isNumber(string& s){
 
 bool compareString(vector<string> a, vector<string> b){
     return stoi(a[1]) > stoi(b[1]);
+}
+
+string stringTrimming(string name){
+    string res = "";
+    for (int i = 0; i < name.size() && res.size() < 9; i++){
+        if (name[i] != ' '){
+            res += name[i];
+        }
+    }
+    return res;
 }
 
 vector<vector<string>> getLocalDatas(){
@@ -1372,6 +1171,200 @@ vector<vector<string>> processJSON(string json){
     return datas;
 }
 
+void initBoard() {
+    for (int i = 0; i < H; i++)
+        for (int j = 0; j < W; j++)
+            if ((i == H - 1) || (j == 0) || (j == W - 1)) board[i][j] = '#';
+            else board[i][j] = ' ';
+}
+
+void resetGame() {
+    initBoard();
+    speed = 1000;
+    currentSpeed = 0;
+    level = 1;
+    score = 0;
+    x = 4; y = 0;
+    b = randomInRange(0, 7);
+    next_b = randomInRange(0, 7);
+    copyTemplateToCurrent(b);
+    isGameOver = false;
+    isInGame = true;
+    system("cls"); // Xóa màn hình console
+}
+
+void gameSettingLoop() {
+    settingIndex = 1;
+    drawSettingMenu(); // Vẽ menu pause lần đầu
+
+    while (screenState == SETTINGS) {
+        // Xử lý input cho menu
+        handleSettingInput();
+
+        // Sleep nhỏ để tránh chiếm CPU
+        Sleep(tick);
+    }
+
+    // Khi thoát menu, xóa màn hình và quay lại gameplay
+    system("cls");
+}
+
+void gameModeLoop() {
+    gameModeIndex = 0;
+    drawGameModeMenu();
+
+    while (screenState == GAMEMODE) {
+        handleGameModeInput();
+        Sleep(50);
+    }
+    system("cls");
+}
+
+void drawCredits(){
+    system("cls");
+    cout<<"Created by: \nVo Thanh Hai Dang - 24520259\nTran Tien Dat - 24520293\nTran Minh Hoang - 24520569\nVo Cao Nguyen - 24521217\nVu Hoang Phong - 24521349\nMusic: \nSerhii_Kliets - Spaceship. Arcade Shooter Game Background Soundtrack\nSS004.Q12-Final Term Project.\n";
+    cout<<"\n[Left/Right Arrow/Space to back]";
+}
+
+void handleCredits(){
+    if ((GetAsyncKeyState(VK_LEFT) & 0x8000) || (GetAsyncKeyState(VK_RIGHT) & 0x8000) || (GetAsyncKeyState(VK_SPACE) & 0x8000)){
+        screenState = MAINMENU;
+        Sleep(100);
+    }
+}
+
+void creditsLoop() {
+    drawCredits();
+
+    while (screenState == CREDITS) {
+        handleCredits();
+        Sleep(tick);
+    }
+    system("cls");
+}
+
+void drawLeaderboard(){
+    system("cls");
+    cout<<"Getting datas, please wait...";
+    vector<vector<string>> datas = processJSON(get10GlobalLdb(leaderboardPage));
+    system("cls");
+    cout<<"===== LEADERBOARD =====\n\n";
+    cout<<setw(12)<<std::left<<"Name"<<setw(12)<<std::left<<"Score"<<setw(20)<<std::left<<"Date"<<"\n";
+    for (int i = 0; i < datas.size(); i++){
+        cout<<setw(12)<<std::left<<datas[i][0]<<setw(12)<<std::left<<datas[i][1]<<setw(20)<<std::left<<datas[i][2]<<"\n";
+    }
+    cout<<"\nUp Arrow/Down Arrow to go up/down pages.\nLeft Arrow/Right Arrow/Space back to main menu.";
+}
+
+void handleLeaderboard(){
+    bool action = false;
+    if (GetAsyncKeyState(VK_DOWN) & 0x8000){
+        leaderboardPage += 1;
+        Sleep(120); action = true;
+    }
+    if (GetAsyncKeyState(VK_UP) & 0x8000){
+        leaderboardPage = max(0, leaderboardPage - 1);
+        Sleep(120); action = true;
+    }
+    if (GetAsyncKeyState(VK_LEFT) & 0x8000 || GetAsyncKeyState(VK_RIGHT) & 0x8000 || GetAsyncKeyState(VK_SPACE) & 0x8000 ) {
+        screenState = MAINMENU;
+
+        Sleep(120);
+    }
+
+    if (action){
+        drawLeaderboard();
+    }
+}
+
+void leaderboardLoop(){
+    leaderboardPage = 0;
+    drawLeaderboard();
+
+    while (screenState == LEADERBOARD) {
+        handleLeaderboard();
+        Sleep(tick);
+    }
+    system("cls");
+}
+
+// Hàm xử lý input màn hình chính
+void handleMainMenu() {
+    static bool up_held = false;
+    static bool down_held = false;
+    static bool space_held = false;
+    static bool left_held = false;
+    static bool right_held = false;
+
+
+    bool up_now = GetAsyncKeyState(VK_UP) & 0x8000;
+    bool down_now = GetAsyncKeyState(VK_DOWN) & 0x8000;
+    bool space_now = GetAsyncKeyState(VK_SPACE) & 0x8000;
+    bool left_now = GetAsyncKeyState(VK_LEFT) & 0x8000;
+    bool right_now = GetAsyncKeyState(VK_RIGHT) & 0x8000;
+
+    // Di chuyển menu lên
+    if (up_now && !up_held) {
+        mainMenuIndex = (mainMenuIndex + mainMenuCount - 1) % mainMenuCount;
+        drawMainMenu();
+    }
+    up_held = up_now;
+
+    // Di chuyển menu xuống
+    if (down_now && !down_held) {
+        mainMenuIndex = (mainMenuIndex + 1) % mainMenuCount;
+        drawMainMenu();
+    }
+    down_held = down_now;
+
+    // Chọn menu
+    if (space_now && !space_held || left_now && !left_held || right_now && !right_held) {
+        switch(mainMenuIndex) {
+            case MENU_START:
+                system("cls");
+                screenState = GAMEMODE;
+                Sleep(100);
+                gameModeLoop();
+                resetGame();
+                screenState = GAMEPLAY;
+                break;
+            case MENU_LEADERBOARD:
+                screenState = LEADERBOARD;
+                Sleep(200);
+                leaderboardLoop();
+                drawMainMenu();
+                break;
+            case MENU_CREDITS:
+                screenState = CREDITS;
+                Sleep(200);
+                creditsLoop();
+                drawMainMenu();
+                break;
+            case MENU_SETTINGS:
+                screenState = SETTINGS;
+                system("cls");
+                gameSettingLoop();
+                drawMainMenu();
+                break;
+            case MENU_QUIT:
+                exit(0);
+        }
+    }
+    space_held = space_now;
+    right_held = right_now;
+    left_held = left_now;
+}
+
+void mainMenuLoop() {
+    isInGame = false;
+    drawMainMenu(); // vẽ menu ngay khi vào
+
+    while (screenState == MAINMENU) {
+        handleMainMenu(); // xử lý input
+        Sleep(20);
+    }
+}
+
 void showGameOverScreen() {
     setColor(COLOR_RED);
     gotoxy(W - 4, H / 2 - 2); cout << "=============";
@@ -1382,9 +1375,9 @@ void showGameOverScreen() {
     gotoxy(W - 4, H / 2 + 3); cout << "                           ";
     setColor(COLOR_WHITE);
     gotoxy(W - 4, H / 2 + 4); cout << "Press 'SPACE' to Replay    ";
-    gotoxy(W - 4, H / 2 + 5); cout << "Press 'Z' to Save score    ";
-    gotoxy(W - 4, H / 2 + 6); cout << "Press 'C' to Submit score  ";
-    gotoxy(W - 4, H / 2 + 7); cout << "Press 'ESC' to Quit        ";
+
+    gotoxy(W - 4, H / 2 + 5); cout << "Press 'C' to Submit score  ";
+    gotoxy(W - 4, H / 2 + 6); cout << "Press 'ESC' to Quit        ";
 }
 
 void showInputSaveLocalScore() {
@@ -1413,11 +1406,11 @@ void showInputSubmitGlobalScore() {
     name = "\""+name+"\"";
     gotoxy(W - 4, H / 2 + 6); cout << "Submitting your score, please wait...";
     screenState = SUBMITTING;
+    name = stringTrimming(name);
     addScore2GlobalLdb(name, score);
     screenState = GAMEPLAY;
     showGameOverScreen();
 }
-
 
 void increaseSpeed(int percent) {
     if (speed > 100) speed = speed * (100 - percent) / 100;
@@ -1664,10 +1657,10 @@ int main()
         isInGame = false;
         // Đợi người chơi chọn: R để chơi lại, ESC để thoát hẳn
         while (true) {
-            if (GetAsyncKeyState('Z') & 0x8000){
-                showInputSaveLocalScore();
-                screenState = SAVE;
-            }
+//            if (GetAsyncKeyState('Z') & 0x8000){
+//                showInputSaveLocalScore();
+//                screenState = SAVE;
+//            }
             if (GetAsyncKeyState('C') & 0x8000){
                 showInputSubmitGlobalScore();
                 screenState = SUBMIT;
